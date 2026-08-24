@@ -22,3 +22,8 @@ routes: /observability
 # still parses — a spec is read at the built sha, so it can never become unknown — and maps to
 # `system.Observability`, which is the wrong group for pages a project scopes.
 navigation-entries: platform.Observability:3
+
+# Where the browsable API document lives: swagger-ui under this service's non-application
+# root, which sits under the primary route above. The shell's Api Docs viewer reads it off
+# /main-navigation and frames it for this repository.
+api-docs: /observability/q/swagger-ui
