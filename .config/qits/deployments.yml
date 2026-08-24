@@ -12,4 +12,13 @@
 deployment_target: environment
 
 routes: /observability
-navigation: Observability:7
+
+# WHERE THE EDGE APPEARS THIS APPLICATION IN THE SIDEBAR. One entry per slot: `platform` is the
+# project-scoped group, and this is its third row. The label and the position are the whole
+# statement — the host is derived from the application name (`qits-observability` minus its `qits-`
+# prefix is `observability`), so there is no `host:` line to keep in step.
+#
+# This replaces `navigation: Observability:7`, the flat list every application shared. The old key
+# still parses — a spec is read at the built sha, so it can never become unknown — and maps to
+# `system.Observability`, which is the wrong group for pages a project scopes.
+navigation-entries: platform.Observability:3

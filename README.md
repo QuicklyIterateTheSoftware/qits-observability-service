@@ -4,9 +4,12 @@ The **telemetry** context of qits: an in-process OTLP/HTTP receiver, a bounded i
 what it receives, and a query surface over that buffer for both humans (REST) and coding agents
 (MCP). Plus the managed-app relay that goes with it, the upstream OTLP tee.
 
-Everything it serves lives under **`/observability`** — `qits-gateway` routes verbatim by prefix, so
-the segment is part of the path this process itself serves, on `qits-net` as much as through the
-gateway. There is no unprefixed form.
+Its **wire** surface lives under **`/observability`** — the edge path-routes verbatim by prefix on
+every vhost, so the segment is part of the path this process itself serves, on `qits-net` as much as
+through the edge. There is no unprefixed form.
+
+The **client** is served at `/`. This service has a host of its own,
+`observability.<env>.<domain>`, and the SPA owns every path on it the wire routes do not claim.
 
     mvn verify        # a clone of this repo alone builds and tests green — no monorepo, no docker
     mvn verify -Dnative   # and compiles to a GraalVM binary, still no docker (see .sdkmanrc)
@@ -73,17 +76,16 @@ out through the query surface, so a 200 on bytes that decoded to nothing cannot 
 The UI is this context's own, and ships inside the same process: `service/src/main/webui` is the
 `qits-spa-observability` submodule (an Angular app), and `quarkus-quinoa` builds it during
 augmentation and serves the bundle as static resources. One deployable, one origin — the page and
-the API it calls differ only by path, so there is no CORS to configure and the gateway still routes
-a single prefix.
+the API it calls are the same origin, so there is no CORS to configure.
 
     git submodule update --init            # the webui is a submodule; a bare clone has an empty dir
     ./mvnw -pl service package -am         # quinoa runs `npm install` + `npm run build` inside it
 
-Served at **`/observability`**, beside its own API rather than above it. Both halves have to agree
-on that segment: the submodule's `angular.json` sets `baseHref` to `/observability/`, and a
-disagreement shows up as a blank page whose bundle 404s, with nothing logged server-side. SPA
-routing is on, so deep links fall back to `index.html`; `/observability/{api,q,mcp}` are excluded
-from that fallback and still answer for themselves.
+Served at **`/`**, above its own API rather than beside it. The submodule's `angular.json` sets
+`baseHref` to `/`, so there is no segment left for the two halves to disagree about. SPA routing is
+on, so deep links — `/traces/<id>` and its project-scoped form `/qits/traces` alike — fall back to
+`index.html`; the whole `/observability` prefix is excluded from that fallback, which is what keeps
+the API, the health endpoints and the MCP server answering for themselves.
 
 **This makes node/npm a build prerequisite, and only a build one.** Quinoa is disabled in test mode
 by default, so `mvn verify`'s suite is as offline and as fast as it was — the clone-alone rule holds
