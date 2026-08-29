@@ -154,7 +154,8 @@ identity, are what keep one project's telemetry out of another's.
   Response records nested in the controller generate as `Response`, `Response1`, `Response2`… and a
   generated client inherits those names, so each carries `@Schema(name = …)`. Give any new one a
   name too; the alternative is a renumbering that silently reshuffles every existing schema.
-- `OtelReceiverIT` is the one `@QuarkusIntegrationTest`, and it runs against the *packaged* process
+- `OtelReceiverIT` is the first of three `@QuarkusIntegrationTest`s (see the userflow section
+  below for the other two), and it runs against the *packaged* process
   — the fast-jar or, under `-Dnative`, the binary. It exists for native-image: protobuf decoding is
   the thing here that can be green in `OtelReceiverResourceTest` and broken in the image, and a boot
   check would not see it because nothing loads a message class until a body arrives. So it posts
@@ -165,6 +166,61 @@ identity, are what keep one project's telemetry out of another's.
 - **A `Failed to start quarkus` / `Port already bound: 8081` failure is the known flake**
   (`migration-plan.md` §9 item 14), not your change: `@QuarkusTest` restarts race for the test port.
   Re-run before investigating.
+
+## The third IT: the round trip, and the userflow
+
+`api/TelemetryBootstrapIT` boots the **packaged** artifact beside a `MockService` standing in for
+the **parent qits-observability**, and tells the whole trip in two stories: an exporter with no
+identity puts a batch in, the tee relays it upstream, and a named operator carrying `qits:admin`
+takes the same records back out.
+
+Four things about it are easy to undo:
+
+- **Its one seam is `otel.exporter.otlp.endpoint`** — the env-var-shaped key `OtelForwarder` reads
+  and a supervising qits injects as `OTEL_EXPORTER_OTLP_ENDPOINT`, not a `quarkus.*` one. Spelled
+  that way on purpose: a rename on either side then fails here rather than in production.
+- **`quarkus.otel.sdk.disabled=true` in the profile is a NEUTRALISATION, not tidiness.** The shipped
+  config points this service's own SDK at `http://qits-observability:8080/…`, a name that resolves
+  on `qits-net` and nowhere else, so a launched artifact would spend the run retrying an export into
+  the void. Disabling it also makes the mock parent's recordings unambiguous: the only thing that
+  can post to it is the tee.
+- **It does not replace `OtelStubTestResource`.** That one is a real `HttpServer` capturing request
+  *bodies*, which is how `OtelTeeTest` proves byte-verbatim relay on the JVM; `MockService` records
+  method, path and headers, which is what a userflow interaction is made of. The IT's contribution
+  is that the relay happens **at all** from the packaged (and, under `-Dnative`, compiled) process.
+- **The two doors are only distinguishable here.** `OtelReceiverResource` is `@PermitAll` and
+  `WorkspaceTelemetryController` is `@RolesAllowed("qits:admin")`, and under `@QuarkusTest`
+  qits-auth-core's `%test` dev-user hands every request `qits:admin` before either annotation is
+  consulted. A `NORMAL` launch has no dev-user, so 401 / 403 / 200 on one port is a fact no
+  `@QuarkusTest` in this repository can state.
+
+**It is opted in by NAME, not by `skipITs`.** The root pom keeps `skipITs=true`, because failsafe
+has one run per module and half of `PackagedSurfaceIT` is about the SPA, which the userflow pipeline
+deliberately does not build (`-Dquarkus.quinoa=false`). Run it — and
+`.config/qits/ci-event-userflows.yml` runs it — as
+`./mvnw verify -DskipITs=false -Dit.test=TelemetryBootstrapIT`.
+
+It is also this repo's first **userflow**: the two stories are `@UserStory` methods in category
+`telemetry`, so a `verify` also writes `service/target/userstories/` — the proof as documentation,
+with the tee drawn as a sequence diagram. They are **browserless** (an `Interactions` parameter and
+no `Flow`), so the framework's transitive Playwright never launches anything and no browser is
+downloaded. They also share one launched process and one in-memory buffer, so they are written to be
+**order-independent**: each reads a bucket the other never writes. Keep it that way, or add a
+`@UserflowPrecondition` and say so. The class orderer is installed the one way Quarkus permits — the
+`junit.quarkus.orderer.secondary-orderer` line in `service`'s test properties; a local
+`junit-platform.properties` hard-fails surefire.
+
+`.config/qits/ci-event-userflows.yml` publishes the reports per commit as the docs bundle
+`@userflows/qits-observability`, and is **non-gating by design**: it is a separate file from
+`ci-post-receive.yml` so a red story does not cost the branch its image.
+
+## Known broken, not this rollout's to fix
+
+`OtelReceiverIT` reads the query surface with **no identity**, and that surface became
+`@RolesAllowed("qits:admin")` in the 2026-08-15 "protect observability APIs" sweep without the IT
+moving with it. `skipITs` has hidden it ever since — nothing has run it — so expect 401s the first
+time somebody runs `./mvnw verify -Dnative`. The fix is the two `X-Qits-*` headers
+`TelemetryBootstrapIT` sends; it is a separate change on purpose.
 
 ## What is not ours to change
 
