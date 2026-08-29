@@ -59,6 +59,17 @@
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
         <quarkus.platform.version>3.34.6</quarkus.platform.version>
         <qits.auth-core.version>2026.817.175344</qits.auth-core.version>
+        <!-- The user-story framework (test scope): TelemetryBootstrapIT is written as @UserStory
+             methods, so a run that boots the packaged artifact also regenerates
+             service/target/userstories/ — the stories' documentation, sequence diagram included.
+             Released out of libs/qits-userflows into the platform's own Maven repository, which is
+             the same place qits-auth-core above comes from. -->
+        <qits.userflows.version>2026.828.153026</qits.userflows.version>
+        <!-- The recording service mocks the same IT boots against. Only the generic MockService is
+             used here — it stands in for the PARENT qits-observability an OtelForwarder tees to;
+             there is no idp in this story, because this service has no OIDC tenant to have one
+             with. Released out of libs/qits-integrations-quarkus like qits-auth-core. -->
+        <qits.service-mock.version>2026.827.71232</qits.service-mock.version>
         <qits.maven.repository.url>http://registry.dev.localhost:8080/artifacts/maven/maven</qits.maven.repository.url>
 
         <!-- Not in the platform BOM, so both are pinned here: mcp-server 2.0.0.CR2 provides the
@@ -89,7 +100,15 @@
              produces the fast-jar — skips them; `service`'s `native` profile flips this to false so
              a `-Dnative` build exercises the binary it just compiled. Same default the gateway
              carries, and it is what keeps "mvn verify is runnable anywhere" true (AGENTS.md) now
-             that there is an IT. -->
+             that there is an IT.
+
+             IT STAYS TRUE FOR THE USERFLOW RUN TOO, unlike qits-githost which opts its module back
+             in. .config/qits/ci-event-userflows.yml wants exactly one of the three ITs — the
+             userflow — and builds WITHOUT Quinoa, so a blanket `-DskipITs=false` would also run
+             PackagedSurfaceIT, half of which is about the client that run deliberately does not
+             build. The pipeline names the class instead:
+             `-DskipITs=false "-Dit.test=TelemetryBootstrapIT"`. Keeping the property's meaning
+             ("run everything") intact is what makes that spelling readable. -->
         <skipITs>true</skipITs>
     </properties>
 
@@ -116,6 +135,16 @@
                 <groupId>${project.groupId}</groupId>
                 <artifactId>qits-auth-core</artifactId>
                 <version>${qits.auth-core.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>qits-userflows</artifactId>
+                <version>${qits.userflows.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>qits-service-mock</artifactId>
+                <version>${qits.service-mock.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.opentelemetry.proto</groupId>
