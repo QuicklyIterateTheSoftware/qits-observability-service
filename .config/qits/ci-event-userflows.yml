@@ -1,7 +1,7 @@
 # The per-commit userflow run: `mvn verify` at the pushed commit — which regenerates
-# service/target/userstories/ through TelemetryBootstrapIT — and the reports published as one docs
-# bundle, site @userflows/qits-observability, version = the bare commit sha, branch riding as
-# artifacts metadata for discovery.
+# service/target/userstories/ through the seven story classes named below — and the reports
+# published as one docs bundle, site @userflows/qits-observability, version = the bare commit sha,
+# branch riding as artifacts metadata for discovery.
 #
 # NON-GATING BY DESIGN, which is why it is a separate file from ci-post-receive.yml: this run going
 # red must not cost the branch its image while "quality gate before merging" is still a decision to
@@ -28,9 +28,21 @@
 #
 # THE TWO IT FLAGS ARE THE OTHER HALF, and they are why this repository does NOT opt its service
 # module back into ITs the way qits-githost does. `skipITs` is true in the root pom and stays true;
-# this module has THREE integration tests and only one of them belongs to this run:
+# this module has NINE integration tests and seven of them belong to this run — the story
+# catalogue, which shares ONE @TestProfile and therefore ONE launched process:
 #
-#   TelemetryBootstrapIT   the userflow — the whole point of this file
+#   TelemetryBootstrapIT       the round trip, and the class that owns the BOOT. It sorts first of
+#                              every story class by fully-qualified name, which is load-bearing:
+#                              the parent stub's recording has no floor, so anything the launched
+#                              process posted upstream before any story ran lands in this story's
+#                              diagram — and its edge count is the assertion that nothing did.
+#   stories/buffer             eviction: the window, and the counter that says it moved.
+#   stories/faults             a parent that is slow, refusing or silent.
+#   stories/ingest             a batch this receiver cannot read, relayed anyway.
+#   stories/operations         one investigation, source list down to the stack trace.
+#   stories/reading            an unreported source is empty, and no read leaves the process.
+#   stories/refusals           one port, two doors.
+#
 #   PackagedSurfaceIT      half about the CLIENT (the base href, the deep links, the fallback that
 #                          must not swallow a machine path), which the line above deliberately does
 #                          not build. A blanket `-DskipITs=false` would make this quinoa-less run
@@ -39,9 +51,10 @@
 #                          to `./mvnw verify -Dnative`, which is where the binary it exists for is
 #                          produced — and see the followup note below.
 #
-# Naming the class keeps the opt-in to this pipeline and to this story, and keeps the property's
-# own meaning ("run everything") intact for the `native` profile that sets it:
-# `-DskipITs=false "-Dit.test=TelemetryBootstrapIT"`.
+# Naming the classes keeps the opt-in to this pipeline and to these stories, and keeps the
+# property's own meaning ("run everything") intact for the `native` profile that sets it. ADD EVERY
+# NEW STORY CLASS TO THE LIST BELOW IN THE SAME COMMIT: a class that is not named simply does not
+# run here, and its story silently disappears from the published bundle while the build stays green.
 #
 # NOTE FOR WHOEVER RUNS `-Dnative` NEXT: OtelReceiverIT reads the query surface with no identity,
 # and that surface became `@RolesAllowed("qits:admin")` in the 2026-08-15 "protect observability
@@ -49,7 +62,7 @@
 # to 401. It needs the two X-Qits-* headers TelemetryBootstrapIT sends; that is a separate fix and
 # is deliberately not folded into this rollout.
 #
-# NO REPAIR WAS NEEDED to make the two new test-scope jars resolve. This repository already carries
+# NO REPAIR WAS NEEDED to make the test-scope jar resolve. This repository already carries
 # `.qits-maven-settings.xml` and a `qits-maven` <repositories> entry — qits-auth-core has always
 # come from the platform registry — so docker/Dockerfile's `-s .qits-maven-settings.xml … package
 # -DskipTests` resolves the test classpath there the same way it already resolved auth-core.
@@ -60,7 +73,8 @@
 # Loop review: this pipeline PUTs a docs bundle and pushes no commit — no cycle. Note the bundle is
 # published to qits-artifacts and READ back by qits-docs, neither of which is this service; the one
 # thing that would close a loop here — this service's own telemetry — is not touched, because the
-# story runs against a launched process with `quarkus.otel.sdk.disabled=true`. Publish-if-absent:
+# stories run against a launched process with `quarkus.otel.sdk.disabled=true` (a stated coverage
+# gap; see stories/support/StoryProfile and AGENTS.md). Publish-if-absent:
 # events redeliver and docs versions are immutable, so 409 is success (the qits-spa-ui-components
 # release file's discipline).
 event: SCMPublishCommit
@@ -83,7 +97,8 @@ steps:
       ./mvnw -B -ntp -s .qits-maven-settings.xml verify \
         -Dqits.maven.repository.url="$QITS_MAVEN_REPOSITORY_URL" \
         -Dquarkus.quinoa=false \
-        -DskipITs=false "-Dit.test=TelemetryBootstrapIT"
+        -DskipITs=false \
+        "-Dit.test=TelemetryBootstrapIT,BufferEvictionIT,ParentTierIT,UnreadableExportIT,OperatorInvestigationIT,QuietReadsIT,OneDoorEachIT"
 
       # `-C … .` so the story directories are the bundle's roots — nesting one directory deep would
       # put it in every served URL. The path is service/target/userstories because the stories live
