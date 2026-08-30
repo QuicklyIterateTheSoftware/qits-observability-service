@@ -367,6 +367,7 @@ class WorkspaceTelemetryControllerTest {
                         "GET /quick",
                         5_000_000_000L,
                         5_010_000_000L)
+                    .addAttributes(TelemetryFixtures.attribute("http.route", "/quick"))
                     .build()),
             now));
   }
@@ -386,6 +387,7 @@ class WorkspaceTelemetryControllerTest {
         .body("traces[0].traceId", equalTo(TelemetryFixtures.TRACE_ID_B))
         .body("traces[0].rootName", equalTo("GET /quick"))
         .body("traces[0].rootService", equalTo("svc"))
+        .body("traces[0].rootRoute", equalTo("/quick"))
         .body("traces[0].services", hasItem("svc"))
         .body("traces[0].durationMs", equalTo(10))
         .body("traces[0].spanCount", equalTo(1))
@@ -456,7 +458,8 @@ class WorkspaceTelemetryControllerTest {
         .statusCode(200)
         .body("traces", hasSize(1))
         .body("traces[0].rootMissing", equalTo(true))
-        .body("traces[0].rootName", equalTo("child work"));
+        .body("traces[0].rootName", equalTo("child work"))
+        .body("traces[0].rootRoute", nullValue());
   }
 
   // --- limits ----------------------------------------------------------------------------------
