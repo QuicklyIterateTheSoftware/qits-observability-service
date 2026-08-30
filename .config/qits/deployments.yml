@@ -11,6 +11,16 @@
 # whichever tier listens to the built branch.
 deployment_target: environment
 
+# WHAT THIS REPOSITORY DEPLOYS AS, held still across the repository rename. The repository is
+# qits-observability-service now; the application is still qits-observability, so nothing that is
+# running moves: the swarm service and its wire alias, the container, the image
+# qits/qits-observability the build pushes, the provisioned database, the derived host label, the
+# extras family and the QITS_APPLICATION the container boots with all keep the names they have.
+# Omitted, this name would be DERIVED from the repository, and the rename would read as a
+# decommission plus a new application rather than a rename. Changing the value later is exactly that
+# decommission, so it does not change again.
+application: qits-observability
+
 routes: /observability
 
 # WHERE THE EDGE APPEARS THIS APPLICATION IN THE SIDEBAR. One entry per slot: `platform` is the
