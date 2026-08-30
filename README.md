@@ -22,8 +22,9 @@ span events with stack traces, correlated by trace id.
 
 ## Two names, on purpose
 
-`qits-observability` is the **repo, the bounded context, the deployable** — the gateway route and
-the submodule are named for it. `qits-telemetry` is the **maven module and java package inside
+`qits-observability` is the **bounded context and the deployable** — the gateway route is named for
+it, and so are this repository, `qits-observability-service`, and the SPA's,
+`qits-observability-frontend`. `qits-telemetry` is the **maven module and java package inside
 it** — `eu.wohlben.qits.telemetry.*`. Settled in the superproject as
 `1919396 Settle the observability naming question`. The earlier `qits-otel` (the seed README, the
 gateway's `OTEL` enum constant and its default `qits-otel` host) is retired; reconciling the
@@ -34,7 +35,7 @@ gateway constant belongs to the gateway.
 | Path | What |
 |---|---|
 | `service/` | The whole context, artifactId `qits-telemetry`. |
-| `service/src/main/webui/` | The SPA, as the `qits-spa-observability` submodule. Built and served by Quinoa. |
+| `service/src/main/webui/` | The SPA, as the `qits-observability-frontend` submodule. Built and served by Quinoa. |
 | `…/api/` | `OtelReceiverResource` (OTLP ingest), `OtelForwarder` (the upstream tee), `WorkspaceTelemetryController` (the UI's JSON), `TelemetryExceptionMapper`. |
 | `…/control/` | `TelemetryDecoder` (protobuf → records), `TelemetryStore` (the buffer), `TelemetryQueryService` (every query both surfaces answer from), `TelemetrySizeEstimator`, `TelemetryChangePublisher`. |
 | `…/dto/` | The stored records and the wire DTOs. |
@@ -74,7 +75,7 @@ out through the query surface, so a 200 on bytes that decoded to nothing cannot 
 ## The SPA
 
 The UI is this context's own, and ships inside the same process: `service/src/main/webui` is the
-`qits-spa-observability` submodule (an Angular app), and `quarkus-quinoa` builds it during
+`qits-observability-frontend` submodule (an Angular app), and `quarkus-quinoa` builds it during
 augmentation and serves the bundle as static resources. One deployable, one origin — the page and
 the API it calls are the same origin, so there is no CORS to configure.
 
