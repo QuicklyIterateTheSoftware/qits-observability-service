@@ -154,8 +154,8 @@ identity, are what keep one project's telemetry out of another's.
   Response records nested in the controller generate as `Response`, `Response1`, `Response2`… and a
   generated client inherits those names, so each carries `@Schema(name = …)`. Give any new one a
   name too; the alternative is a renumbering that silently reshuffles every existing schema.
-- `OtelReceiverIT` is the first of three `@QuarkusIntegrationTest`s (see the userflow section
-  below for the other two), and it runs against the *packaged* process
+- `OtelReceiverIT` is one of nine `@QuarkusIntegrationTest`s — itself, `PackagedSurfaceIT`, and the
+  seven story classes of the userflow catalogue below — and it runs against the *packaged* process
   — the fast-jar or, under `-Dnative`, the binary. It exists for native-image: protobuf decoding is
   the thing here that can be green in `OtelReceiverResourceTest` and broken in the image, and a boot
   check would not see it because nothing loads a message class until a body arrives. So it posts
@@ -167,48 +167,133 @@ identity, are what keep one project's telemetry out of another's.
   (`migration-plan.md` §9 item 14), not your change: `@QuarkusTest` restarts race for the test port.
   Re-run before investigating.
 
-## The third IT: the round trip, and the userflow
+## The story catalogue
 
-`api/TelemetryBootstrapIT` boots the **packaged** artifact beside a `MockService` standing in for
-the **parent qits-observability**, and tells the whole trip in two stories: an exporter with no
-identity puts a batch in, the tee relays it upstream, and a named operator carrying `qits:admin`
-takes the same records back out.
+`service/src/test/java/.../telemetry/stories/**` plus `telemetry/TelemetryBootstrapIT` are this
+repository's **userflows**: seven `@UserStory` methods, one per class, run as
+`@QuarkusIntegrationTest`s against the **packaged** artifact beside a stand-in for the parent
+qits-observability. A `verify` that names them writes `service/target/userstories/` — the proof as
+documentation, each story with its own **observed** network diagram.
 
-Four things about it are easy to undo:
+They are **browserless** (an `Interactions` parameter and no `Flow`), so the framework's transitive
+Playwright never launches anything and no browser is downloaded.
 
-- **Its one seam is `otel.exporter.otlp.endpoint`** — the env-var-shaped key `OtelForwarder` reads
-  and a supervising qits injects as `OTEL_EXPORTER_OTLP_ENDPOINT`, not a `quarkus.*` one. Spelled
-  that way on purpose: a rename on either side then fails here rather than in production.
-- **`quarkus.otel.sdk.disabled=true` in the profile is a NEUTRALISATION, not tidiness.** The shipped
-  config points this service's own SDK at `http://qits-observability:8080/…`, a name that resolves
-  on `qits-net` and nowhere else, so a launched artifact would spend the run retrying an export into
-  the void. Disabling it also makes the mock parent's recordings unambiguous: the only thing that
-  can post to it is the tee.
-- **It does not replace `OtelStubTestResource`.** That one is a real `HttpServer` capturing request
-  *bodies*, which is how `OtelTeeTest` proves byte-verbatim relay on the JVM; `MockService` records
-  method, path and headers, which is what a userflow interaction is made of. The IT's contribution
-  is that the relay happens **at all** from the packaged (and, under `-Dnative`, compiled) process.
-- **The two doors are only distinguishable here.** `OtelReceiverResource` is `@PermitAll` and
+| class                                | category     | subject                                             |
+| ------------------------------------ | ------------ | --------------------------------------------------- |
+| `TelemetryBootstrapIT`               | `ingest`     | the round trip, and the boot behind it               |
+| `stories/ingest/UnreadableExportIT`  | `ingest`     | a batch this receiver cannot read, relayed anyway    |
+| `stories/buffer/BufferEvictionIT`    | `buffer`     | the window, and the counter that says it moved       |
+| `stories/faults/ParentTierIT`        | `faults`     | a parent that is slow, refusing or silent            |
+| `stories/operations/OperatorInvestigationIT` | `operations` | source list → trace → stack trace → release   |
+| `stories/reading/QuietReadsIT`       | `reading`    | an empty source, and no read leaving this process    |
+| `stories/refusals/OneDoorEachIT`     | `refusals`   | one port, two doors                                  |
+
+### What only a launched process can say
+
+- **The two doors are different.** `OtelReceiverResource` is `@PermitAll` and
   `WorkspaceTelemetryController` is `@RolesAllowed("qits:admin")`, and under `@QuarkusTest`
   qits-auth-core's `%test` dev-user hands every request `qits:admin` before either annotation is
   consulted. A `NORMAL` launch has no dev-user, so 401 / 403 / 200 on one port is a fact no
   `@QuarkusTest` in this repository can state.
+- **The tee is real, and it is not in the exporter's way.** `OtelForwarder` builds its `HttpClient`
+  in `@PostConstruct` precisely so the native image will have it, and the forward is `sendAsync`.
+  "Ingest did not wait for the parent" is only a *measurement* against a far side that is
+  deliberately slow in another process; on one heap a blocking forward would still look fast.
+- **The cap is the shipped one.** `StoryProfile` overrides no `qits.telemetry.max-*` key, so the
+  eviction story measures the 2,000-span figure a deployment really runs with.
 
-**It is opted in by NAME, not by `skipITs`.** The root pom keeps `skipITs=true`, because failsafe
-has one run per module and half of `PackagedSurfaceIT` is about the SPA, which the userflow pipeline
-deliberately does not build (`-Dquarkus.quinoa=false`). Run it — and
-`.config/qits/ci-event-userflows.yml` runs it — as
-`./mvnw verify -DskipITs=false -Dit.test=TelemetryBootstrapIT`.
+### `stories/support/` — four classes, and why each exists
 
-It is also this repo's first **userflow**: the two stories are `@UserStory` methods in category
-`telemetry`, so a `verify` also writes `service/target/userstories/` — the proof as documentation,
-with the tee drawn as a sequence diagram. They are **browserless** (an `Interactions` parameter and
-no `Flow`), so the framework's transitive Playwright never launches anything and no browser is
-downloaded. They also share one launched process and one in-memory buffer, so they are written to be
-**order-independent**: each reads a bucket the other never writes. Keep it that way, or add a
-`@UserflowPrecondition` and say so. The class orderer is installed the one way Quarkus permits — the
-`junit.quarkus.orderer.secondary-orderer` line in `service`'s test properties; a local
-`junit-platform.properties` hard-fails surefire.
+- **`StoryTarget`** — the paths, the four actors, the two request specs (`otlp()` sends the content
+  type *bare*, because `OtelForwarder` relays what it received and a RestAssured charset would make
+  the tee assertion be about the test), and the label helpers, which scrub through the very function
+  the tap uses so an assertion and an observation cannot disagree.
+- **`StoryProfile`** — one launched process for the whole catalogue. Two runtime keys and nothing
+  else, because a qits-observability deployment is a process and two addresses.
+- **`StoryParent`** — the parent collector, purpose-built. It **replaced `qits-service-mock`'s
+  `MockService`**, and the dependency went with it: a canned-JSON mock keyed on an exact
+  `METHOD path` pair cannot answer OTLP protobuf, and cannot be armed from a story method's
+  classloader (an attached handle refuses to stub), so it cannot express the stories this catalogue
+  is mostly made of. This one answers real `Export*ServiceResponse` bytes, records
+  `METHOD⇥TARGET⇥STATUS⇥TYPE⇥ENCODING` **before** answering, and arms `refuse` / `hangUp` /
+  `answerSlowly` through files.
+- **`StoryNetwork`** — both feeds in one call, so no class can wire half of them.
+
+`StoryParent` does **not** replace `OtelStubTestResource`. That one is a real `HttpServer` capturing
+request *bodies*, which is how `OtelTeeTest` proves byte-verbatim relay on the JVM; `StoryParent`
+records method, target, status and the two relayed headers, which is what a userflow's observed
+network edge is made of. **No story here claims the parent got the same bytes** — the recording holds
+none.
+
+### The rules these stories keep
+
+- **The diagram is OBSERVED, never narrated.** `Interactions` records notes and nothing else — there
+  is no `happened()` any more. Edges come from two taps: the framework's shipped
+  `NetworkTaps.restAssured` for what a story sends *into* this process (the hand-copied
+  `api/StoryNetworkFilter` was **deleted** when this catalogue was written — do not reintroduce
+  one), and `StoryParent`'s access log for what the tee sent *out*.
+- **Name the actor before you call.** A tap cannot know whether a caller is an exporter SDK, a
+  granted operator or a reader the edge never named — on the wire three of those differ by two
+  headers. `NetworkCapture.actor(...)` is reset at every story start.
+- **Never put a distinction in a label.** Edges dedupe on the whole `(kind, from, to, label)`
+  quadruple, so "the same route asked twice" is one arrow — which route a read addressed travels as
+  a query, and the shipped tap drops the query inbound. Distinctions belong in `Interactions.note()`.
+- **An absence is an assertion, never an edge.** "Nothing was retried", "the refusals cost the parent
+  nothing", "the buffer gained no bytes" are counted assertions with a note beside them.
+  `QuietReadsIT` additionally makes the absence a *claim*: `assertNoEdgesTo(parent)`.
+- **Await the tee before the story ends.** The forward is fire-and-forget on another thread and the
+  framework drains the recording at story end, so an un-awaited forward lands in a later story's
+  diagram or in none. Every export is followed by `StoryParent.awaitForward`, which waits for *one
+  more* than the story found on entry — which is also what keeps the stories order-independent.
+- **`@AfterAll` pins the graph**: `assertEdge` per edge for presence, `assertEdgeCount` for the
+  absence half, and `assertOnlyEdgesFrom` for the actor set. A story class that installs a tap and
+  pins no edge would silently empty every diagram in the class.
+- **Buckets are disjoint.** Each story exports into a repository/workspace pair (or a `service.name`)
+  no other story reads, because the catalogue shares one in-memory buffer and there is no
+  clear-the-store route on the wire. Keep it that way when adding a story.
+- **`TelemetryBootstrapIT` owns the boot.** `UserflowClassOrderer` sorts by fully-qualified class
+  name, so `…telemetry.TelemetryBootstrapIT` runs before every `…telemetry.stories.*` class; the
+  parent's recording has **no floor**, so anything the launched process posted upstream at startup
+  would land in that story's diagram, and its `assertEdgeCount` is the assertion that nothing did.
+  Every other story method carries `@UserflowRunsAfter(TelemetryBootstrapIT.class)` to state that as
+  a dependency rather than as a coincidence of spelling. The class orderer is installed the one way
+  Quarkus permits — the `junit.quarkus.orderer.secondary-orderer` line in `service`'s test
+  properties; a local `junit-platform.properties` hard-fails surefire.
+
+### Stated coverage gaps
+
+Both are written down rather than papered over, and neither is claimed as an absence — an
+`assertNoEdgesTo` over something this profile switched off would be a claim about the profile.
+
+- **This service's own OTLP self-export.** qits-observability is a producer as well as the receiver,
+  and its shipped config points its SDK at *itself*. `StoryProfile` sets
+  `quarkus.otel.sdk.disabled=true` for three reasons: the shipped hostname resolves on `qits-net`
+  and nowhere else; pointing it at the launched process is **out of reach**, because a
+  `@QuarkusIntegrationTest` gets an ephemeral port and a `@TestProfile`'s overrides are computed
+  before the process exists; and an exporter flushing on its own schedule would draw arrows into
+  whichever story happened to be open. What disabling it buys is the other half — the only thing in
+  the process that can post to the parent is the tee, which is what makes `StoryParent`'s structural
+  `from` true.
+- **The MCP surface.** `/observability/mcp` is not driven by any story. The tools fail closed in a
+  packaged run (the `RepositoryScopeGuard` / `WorkspaceLookup` ports are `src/test` beans and are
+  simply absent), so the honest story would be "an agent is offered no telemetry tools" — which needs
+  a JSON-RPC `initialize` + `tools/list` over Streamable HTTP with session negotiation and an SSE
+  response. `TelemetryMcpToolsTest` covers the scoping logic; the protocol handshake against the
+  packaged process is unwritten.
+
+### Running them
+
+Opted in **by name**, not by `skipITs`. The root pom keeps `skipITs=true`, because failsafe has one
+run per module and half of `PackagedSurfaceIT` is about the SPA, which the userflow pipeline
+deliberately does not build (`-Dquarkus.quinoa=false`):
+
+    ./mvnw verify -DskipITs=false -Dquarkus.quinoa=false \
+      "-Dit.test=TelemetryBootstrapIT,BufferEvictionIT,ParentTierIT,UnreadableExportIT,OperatorInvestigationIT,QuietReadsIT,OneDoorEachIT"
+
+**Add every new story class to that list in `.config/qits/ci-event-userflows.yml` in the same
+commit.** A class that is not named does not run there, and its story disappears from the published
+bundle while the build stays green. `rm -rf service/target/userstories` before inspecting a run:
+a renamed story leaves a stale directory behind and the site index rescans whatever it finds.
 
 `.config/qits/ci-event-userflows.yml` publishes the reports per commit as the docs bundle
 `@userflows/qits-observability`, and is **non-gating by design**: it is a separate file from

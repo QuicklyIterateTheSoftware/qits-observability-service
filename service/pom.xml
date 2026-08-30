@@ -7,7 +7,7 @@
     <parent>
         <groupId>eu.wohlben.qits</groupId>
         <artifactId>qits-observability</artifactId>
-        <version>2026.829.140447</version>
+        <version>2026.830.21710</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -114,27 +114,31 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <!-- The user-story framework: TelemetryBootstrapIT is written as @UserStory methods, so
-                 the packaged round-trip proof doubles as documentation — steps, interactions and a
-                 sequence diagram emitted under target/userstories/. Both stories are browserless
-                 (an Interactions parameter and no Flow), so the transitive Playwright never
-                 launches anything and no browser is downloaded. Version pinned in the parent. -->
+            <!-- The user-story framework: the story catalogue under src/test/java/…/telemetry/stories
+                 (plus TelemetryBootstrapIT, which owns the boot) is written as @UserStory methods,
+                 so the packaged round-trip proof doubles as documentation — steps, notes and an
+                 OBSERVED network diagram per story, emitted under target/userstories/. Every story
+                 is browserless (an Interactions parameter and no Flow), so the transitive
+                 Playwright never launches anything and no browser is downloaded. Version pinned in
+                 the parent.
+
+                 NO qits-service-mock. This module used to depend on it for the generic MockService
+                 standing in for the PARENT qits-observability; stories/support/StoryParent replaced
+                 it, and the dependency went with it. A canned-JSON mock keyed on an exact
+                 METHOD+path pair cannot answer OTLP protobuf, cannot be armed from a story method's
+                 classloader (an attached handle refuses to stub), and therefore cannot express the
+                 stories this catalogue is mostly made of: a parent that is slow, refusing or
+                 silent. StoryParent speaks the collector surface with the same proto bindings the
+                 receiver decodes with, and arms its faults through files the way every sibling
+                 catalogue does.
+
+                 It does NOT replace OtelStubTestResource either. That one is a real HttpServer
+                 capturing request BODIES, which is how OtelTeeTest proves byte-verbatim relay
+                 against the suite's JVM; StoryParent records method, target, status and the two
+                 relayed headers, which is what a userflow's observed network edge is made of. The
+                 two prove different halves. -->
             <groupId>${project.groupId}</groupId>
             <artifactId>qits-userflows</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <!-- The recording service mock. The IT points otel.exporter.otlp.endpoint at a
-                 MockService standing in for the PARENT qits-observability, and its recordings are
-                 what make the tee assertable on the parent's end as well as the receiver's.
-                 Version pinned in the parent.
-
-                 It does NOT replace OtelStubTestResource. That one is a real HttpServer capturing
-                 request BODIES, which is how OtelTeeTest proves byte-verbatim relay against the
-                 suite's JVM; MockService records method, path and headers, which is what a userflow
-                 interaction is made of. The two prove different halves. -->
-            <groupId>${project.groupId}</groupId>
-            <artifactId>qits-service-mock</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
