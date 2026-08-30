@@ -286,6 +286,7 @@ public class TelemetryQueryService {
         traceId,
         shown.name(),
         shown.serviceName(),
+        routeOf(shown),
         List.copyOf(services),
         start,
         (end - start) / 1_000_000,
@@ -293,6 +294,16 @@ public class TelemetryQueryService {
         errorSpans,
         hasException,
         rootMissing);
+  }
+
+  /** The shown span's templated route, its concrete path, or null — never derived from the name. */
+  private static String routeOf(StoredSpan span) {
+    String route = span.attributes().get("http.route");
+    if (route != null && !route.isBlank()) {
+      return route;
+    }
+    String path = span.attributes().get("url.path");
+    return path != null && !path.isBlank() ? path : null;
   }
 
   /** How {@link #slowSpans} and the trace list order their results. */

@@ -313,6 +313,8 @@ components:
           type: string
         rootService:
           type: string
+        rootRoute:
+          type: string
         services:
           type: array
           items:
@@ -669,4 +671,4 @@ paths:
         - qits:admin
 info:
   title: qits-observability API
-  version: 2026.819.212848
+  version: 2026.830.143942

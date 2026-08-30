@@ -15,12 +15,18 @@ import org.eclipse.microprofile.openapi.annotations.media.Schema;
  * <p>{@code durationMs} spans the whole trace as buffered (earliest start to latest end), which is
  * not the root's own duration when the root is missing. {@code spanCount} likewise counts what
  * survived, not what was emitted.
+ *
+ * <p>{@code rootRoute} is the shown span's templated route ({@code http.route}), falling back to
+ * its concrete path ({@code url.path}), and null when it carries neither — a non-HTTP root, or no
+ * root at all. Like {@code rootName}, under {@code rootMissing} it describes the stand-in span, so
+ * the group a trace lands in always matches what its row says.
  */
 @Schema(name = "TelemetryTraceSummary", description = "One row of the trace list.")
 public record TelemetryTraceSummaryDto(
     String traceId,
     String rootName,
     String rootService,
+    String rootRoute,
     List<String> services,
     long startEpochNanos,
     long durationMs,
