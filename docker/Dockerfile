@@ -50,6 +50,14 @@ COPY . .
 ARG QITS_MAVEN_REPOSITORY_URL=http://registry.dev.localhost:8080/artifacts/maven/maven
 ENV QITS_MAVEN_REPOSITORY_URL=$QITS_MAVEN_REPOSITORY_URL
 
+# --- and where Maven Central is mirrored, when it is ----------------------------------------------
+# The pipeline passes the platform's pull-through (qits-platform-mirror's central proxy, the same
+# authority the FROM lines above pull through); EMPTY — the default — means direct Maven Central.
+# `.qits-maven-settings.xml` activates its central-proxy profile only on a non-empty value, so a
+# bootstrap or hand build that passes nothing resolves exactly as it always did.
+ARG QITS_MAVEN_CENTRAL_URL=
+ENV QITS_MAVEN_CENTRAL_URL=$QITS_MAVEN_CENTRAL_URL
+
 # `-pl service -am` builds the app and its dependency closure, not the whole reactor. That is not a
 # module list — it names the one module this image ships, which the COPY below already names anyway,
 # so leaving it out gains nothing. What it buys: this repo will publish libraries as well as an
