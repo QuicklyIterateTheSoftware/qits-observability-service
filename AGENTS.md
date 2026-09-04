@@ -284,20 +284,22 @@ Both are written down rather than papered over, and neither is claimed as an abs
 ### Running them
 
 Opted in **by name**, not by `skipITs`. The root pom keeps `skipITs=true`, because failsafe has one
-run per module and half of `PackagedSurfaceIT` is about the SPA, which the userflow pipeline
-deliberately does not build (`-Dquarkus.quinoa=false`):
+run per module and half of `PackagedSurfaceIT` is about the SPA, which the userflow half of the QA
+pipeline deliberately does not build (`-Dquarkus.quinoa=false`):
 
     ./mvnw verify -DskipITs=false -Dquarkus.quinoa=false \
       "-Dit.test=TelemetryBootstrapIT,BufferEvictionIT,ParentTierIT,UnreadableExportIT,OperatorInvestigationIT,QuietReadsIT,OneDoorEachIT"
 
-**Add every new story class to that list in `.config/qits/ci-event-userflows.yml` in the same
-commit.** A class that is not named does not run there, and its story disappears from the published
-bundle while the build stays green. `rm -rf service/target/userstories` before inspecting a run:
-a renamed story leaves a stale directory behind and the site index rescans whatever it finds.
+**Add every new story class to that list in the userflow half of
+`.config/qits/ci-event-release-request.yml` in the same commit.** A class that is not named does not
+run there, and its story disappears from the published bundle while the build stays green.
+`rm -rf service/target/userstories` before inspecting a run: a renamed story leaves a stale
+directory behind and the site index rescans whatever it finds.
 
-`.config/qits/ci-event-userflows.yml` publishes the reports per commit as the docs bundle
-`@userflows/qits-observability`, and is **non-gating by design**: it is a separate file from
-`ci-post-receive.yml` so a red story does not cost the branch its image.
+That half publishes the reports as the docs bundle `@userflows/qits-observability` — once per
+release-request fold now, not per commit, because per-push CI is retired and the QA pipeline runs
+for release requests alone. It stays **non-gating by design**: it declares `gating: false`, so a red
+story shows the run red without holding the fold at qits-projects' release gate.
 
 ## Known broken, not this rollout's to fix
 
