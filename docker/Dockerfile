@@ -124,8 +124,10 @@ ENV QITS_MAVEN_CENTRAL_URL=$QITS_MAVEN_CENTRAL_URL
 #
 # One `cp` re-materialises it in the layer that is about to move it. It has to be in THIS `RUN` and
 # not a tidier one of its own — a layer boundary is exactly what it is undoing.
-RUN --mount=type=secret,id=qits-client-id,env=QITS_MAVEN_AUTH_USR \
-    --mount=type=secret,id=qits-client-secret,env=QITS_MAVEN_AUTH_PSW \
+RUN --mount=type=secret,id=qits-client-id \
+    --mount=type=secret,id=qits-client-secret \
+    export QITS_MAVEN_AUTH_USR="$(cat /run/secrets/qits-client-id 2>/dev/null || true)"; \
+    export QITS_MAVEN_AUTH_PSW="$(cat /run/secrets/qits-client-secret 2>/dev/null || true)"; \
     d=service/src/main/webui/dist/qits-spa-observability/browser; \
     test -f "$d/index.html" || { \
       echo "No built client at $d." >&2; \
