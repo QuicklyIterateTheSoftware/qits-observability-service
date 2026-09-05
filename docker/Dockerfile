@@ -124,8 +124,18 @@ ENV QITS_MAVEN_CENTRAL_URL=$QITS_MAVEN_CENTRAL_URL
 #
 # One `cp` re-materialises it in the layer that is about to move it. It has to be in THIS `RUN` and
 # not a tidier one of its own — a layer boundary is exactly what it is undoing.
-RUN --mount=type=secret,id=qits-client-id,env=QITS_MAVEN_AUTH_USR \
-    --mount=type=secret,id=qits-client-secret,env=QITS_MAVEN_AUTH_PSW \
+#
+# --- the two secrets, in FILE FORM rather than `env=` ----------------------------------------------
+# The mounts are bare (`/run/secrets/<id>`, read into this command's own environment by the two
+# `cat`s) rather than the `env=` mount form they used to be: `env=` needs a dockerfile frontend that
+# supports it, and under the platform's own buildkitd the frontend is the BUILDER's to pick rather
+# than this file's, while the bare file mount is served identically by every frontend version. See
+# qits-buildkit-plan.md in the wrapper. Absent secrets leave both variables empty — the `|| true`,
+# every hand build's state — which `.qits-maven-settings.xml` reads exactly as it reads unset.
+RUN --mount=type=secret,id=qits-client-id \
+    --mount=type=secret,id=qits-client-secret \
+    export QITS_MAVEN_AUTH_USR="$(cat /run/secrets/qits-client-id 2>/dev/null || true)"; \
+    export QITS_MAVEN_AUTH_PSW="$(cat /run/secrets/qits-client-secret 2>/dev/null || true)"; \
     d=service/src/main/webui/dist/qits-spa-observability/browser; \
     test -f "$d/index.html" || { \
       echo "No built client at $d." >&2; \
@@ -155,8 +165,9 @@ RUN --mount=type=secret,id=qits-client-id,env=QITS_MAVEN_AUTH_USR \
 # The service module's CycloneDX document, exported so the release step can PUT it to the platform's
 # SBOM store. A stage rather than a layer of the runtime image, and BEFORE the runtime stage on
 # purpose: the last stage is what a plain `docker build` builds, and that must stay the image. The
-# release step reaches this one with `--target sbom --output type=local` using the SAME args and
-# secrets as the image build, so every layer above is a cache hit and the export costs seconds.
+# release step reaches this one with `--opt target=sbom --output type=local` using the SAME
+# build-args and secrets as the image build, so every layer above is a cache hit and the export costs
+# seconds.
 # `makeBom` rides on the mvnw invocation above rather than a second one, for the same cache reason —
 # one RUN, one layer, one truth.
 FROM scratch AS sbom
