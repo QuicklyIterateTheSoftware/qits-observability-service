@@ -21,7 +21,6 @@ import jakarta.inject.Inject;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Map;
-import org.eclipse.microprofile.config.ConfigProvider;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -108,13 +107,11 @@ class BearerAuthTest {
   }
 
   @Test
-  void aTokenForThisServicesOwnAudienceIsAcceptedToo() {
-    // Quarkus accepts a token when its `aud` holds any one of the configured values. The own
-    // audience follows QITS_ENVIRONMENT, so it is read from the config rather than spelled here.
-    String own = ConfigProvider.getConfig().getValue("qits.auth.machine.audience", String.class);
-    assertTrue(own.endsWith("-qits-observability"), own);
+  void aPeerServicesMachineTokenIsAcceptedToo() {
+    // qits-platform-idp stamps `qits-platform` on every token it mints, a machine token included, so
+    // a peer service reaches this one and its roles decide from there.
     given()
-        .header("Authorization", bearer(BearerTokens.tokenFor(own, "qits:admin")))
+        .header("Authorization", bearer(BearerTokens.machineToken("qits:admin")))
         .when()
         .get(STORE)
         .then()
@@ -133,9 +130,11 @@ class BearerAuthTest {
   }
 
   @Test
-  void aTokenForAnotherServiceIsUnauthorized() {
+  void aTokenAddressedOutsideThisPlatformIsUnauthorized() {
+    // Not a peer service: a peer's token carries `qits-platform` too and gets in. What the audience
+    // check refuses is a token minted for something that is not this platform at all.
     given()
-        .header("Authorization", bearer(BearerTokens.tokenFor("qits-projects", "qits:admin")))
+        .header("Authorization", bearer(BearerTokens.tokenFor("some-other-platform", "qits:admin")))
         .when()
         .get(STORE)
         .then()

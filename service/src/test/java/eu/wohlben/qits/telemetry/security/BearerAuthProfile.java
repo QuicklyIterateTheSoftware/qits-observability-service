@@ -15,7 +15,7 @@ import java.util.Map;
  *       bearer.
  * </ul>
  *
- * <p>Everything else, the issuer and the audience list included, is the shipped configuration.
+ * <p>Everything else, the issuer and the audience included, is the shipped configuration.
  * {@link BearerJwksTest} covers the shipped key fetch itself.
  */
 public class BearerAuthProfile implements QuarkusTestProfile {

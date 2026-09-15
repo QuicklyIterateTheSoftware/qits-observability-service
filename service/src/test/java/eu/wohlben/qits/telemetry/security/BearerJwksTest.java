@@ -14,7 +14,7 @@ import org.junit.jupiter.api.TestMethodOrder;
 
 /**
  * The shipped key path, end to end, with {@link JwksStub} in place of qits-platform-idp: discovery
- * off, {@code jwks-path=jwks}, the shipped issuer and audiences, and {@code
+ * off, {@code jwks-path=jwks}, the shipped issuer and audience, and {@code
  * jwks.resolve-early=false}.
  *
  * <p>What it pins: nothing but a bearer ever reaches the idp. Boot, header traffic, ingest and 401

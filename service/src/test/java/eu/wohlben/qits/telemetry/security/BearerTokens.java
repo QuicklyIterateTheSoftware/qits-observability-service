@@ -45,6 +45,23 @@ final class BearerTokens {
     return token(ISSUER, audience, privateKey(), roles);
   }
 
+  /**
+   * A peer service's machine token: the same issuer and the same {@code qits-platform} audience — the
+   * idp stamps it on everything it mints — with a client id in {@code sub} and no {@code cli}
+   * credential type.
+   */
+  static String machineToken(String... roles) {
+    return Jwt.claims()
+        .issuer(ISSUER)
+        .subject("qits-canary")
+        .audience(Set.of(PLATFORM_AUDIENCE))
+        .groups(Set.of(roles))
+        .expiresIn(Duration.ofMinutes(5))
+        .jws()
+        .keyId(KEY_ID)
+        .sign(privateKey());
+  }
+
   /** The same token, from {@code issuer} instead. Correctly signed. */
   static String tokenFrom(String issuer, String... roles) {
     return token(issuer, PLATFORM_AUDIENCE, privateKey(), roles);

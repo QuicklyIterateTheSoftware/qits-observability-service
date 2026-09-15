@@ -100,8 +100,8 @@ commissioned agent's role; everything behind it only reads):
 - **A person's bearer token** — `qits observe` calls through the edge with the person's token from
   qits-platform-idp. The edge removes every `X-Qits-*` header from a request that carries a Bearer
   or Basic credential, so headers cannot carry that person. `quarkus-oidc` checks the token
-  (signature, issuer, and an `aud` that holds `${QITS_ENVIRONMENT:prod}-qits-observability` or
-  `qits-platform`), and its `groups` claim becomes the roles.
+  (signature, issuer, and an `aud` that holds `qits-platform`, the one audience qits-platform-idp
+  stamps on every token it mints), and its `groups` claim becomes the roles.
 
 A request with no `Authorization` header never reaches the token check, so header traffic is what it
 was. A request with a token is decided by the token: OIDC's mechanism runs first, so a token that
