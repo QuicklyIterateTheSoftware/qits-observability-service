@@ -80,6 +80,7 @@ public class TelemetryQueryService {
         store.startedAt(),
         store.totalBytes(),
         store.maxTotalBytes(),
+        store.maxBytesPerSource(),
         new TelemetryStoreStateDto.Caps(
             store.maxSpansPerSource(), store.maxLogsPerSource(), store.maxMetricSeriesPerSource()),
         store.sourceCount(),

@@ -97,17 +97,23 @@ UI from here rather than from a second container.
 
 **Owns no tables, and no datasource.** `TelemetryStore` is in-memory and ephemeral by design — a JVM
 restart empties it, and `…/telemetry/store` reports `startedAt` so a UI can say so rather than
-letting an empty screen read as broken. Bounding is two-tier: per-source count caps (spans / logs /
-metric series) plus a global byte ceiling that evicts oldest-first from the *fattest* bucket, so one
-chatty service pays for its own volume instead of evicting a quieter one's telemetry. Tuning knobs
-default in code: `qits.telemetry.max-spans-per-workspace` (2000), `.max-logs-per-workspace` (10000),
-`.max-metric-series-per-workspace` (500), `.max-total-bytes` (64 MiB). The keys keep their
-`-per-workspace` spelling for compatibility; a bucket is a source.
+letting an empty screen read as broken. Bounding is three-tier: per-source count caps (spans / logs /
+metric series), then a per-source byte budget — the tier that decides what a source retains, from
+that source's own volume alone — and finally a global byte ceiling that evicts oldest-first from the
+*fattest* bucket, kept as a backstop on this process's heap rather than as an arbiter between
+sources. Tuning knobs default in code: `qits.telemetry.max-spans-per-workspace` (2000),
+`.max-logs-per-workspace` (10000), `.max-metric-series-per-workspace` (500),
+`.max-bytes-per-source` (15 MiB), `.max-total-bytes` (256 MiB). The three count keys keep their
+`-per-workspace` spelling for compatibility; a bucket is a source, which is the word the new key
+uses.
 
-**Report buffer pressure in counts, not bytes.** With these caps the count caps bind first every
-time — ten full span buckets estimate at roughly 40 MB against a 64 MiB ceiling — so a byte gauge
-sits low and still while records are being evicted. `evictedSpans` is the number that matters: zero
-means you are seeing everything that arrived, non-zero means you are seeing what survived.
+**Read buffer pressure per source.** The number to watch is a source's own `bytes` against
+`maxBytesPerSource`: for an edge-shaped service that budget binds long before the log count cap
+does, so counts can sit well under their caps while records are being evicted. `totalBytes` against
+`maxTotalBytes` is the backstop gauge, and if it sits near full the answer is a smaller per-source
+budget, not a bigger ceiling. `evictedSpans` is still the number that says which question you are
+answering: zero means you are seeing everything that arrived, non-zero means you are seeing what
+survived.
 
 **Ingest is protobuf-only.** qits pins every launched exporter to `http/protobuf`, so OTLP/JSON
 (which deviates from proto3 JSON) and gRPC are not implemented. Gzip is detected by magic bytes

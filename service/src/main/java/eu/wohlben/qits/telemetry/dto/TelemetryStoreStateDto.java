@@ -15,14 +15,22 @@ import org.eclipse.microprofile.openapi.annotations.media.Schema;
  * arrived; non-zero means they are what survived, and a screen that does not say so is inviting the
  * wrong conclusion from a short list.
  *
- * <p>Report pressure from the <em>counts</em>, not from {@code totalBytes}: with the shipped caps
- * the count caps bind long before the byte ceiling, so a byte gauge sits low and still.
+ * <p>Read pressure per source: a source's own {@code bytes} (on the wire as {@code
+ * TelemetrySourceDto.bytes}) against {@code maxBytesPerSource}. That budget is the tier that binds
+ * for an edge-shaped source, and it is what decides what that source retains — its counts can sit
+ * well under their caps while the byte budget is evicting.
+ *
+ * <p>{@code totalBytes} against {@code maxTotalBytes} is the backstop gauge: it bounds this
+ * process's heap across every bucket, and it should not bind in normal operation. If it sits near
+ * full, the answer is to lower the per-source budget, not to raise the ceiling — a binding global
+ * tier means one source's retention is decided by what another source is holding.
  */
 @Schema(name = "TelemetryStoreState", description = "The in-memory buffer's own state.")
 public record TelemetryStoreStateDto(
     Instant startedAt,
     long totalBytes,
     long maxTotalBytes,
+    long maxBytesPerSource,
     Caps caps,
     int sourceCount,
     long evictedSpans,

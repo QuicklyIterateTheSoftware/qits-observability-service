@@ -276,6 +276,9 @@ components:
         maxTotalBytes:
           type: integer
           format: int64
+        maxBytesPerSource:
+          type: integer
+          format: int64
         caps:
           $ref: "#/components/schemas/TelemetryStoreCaps"
         sourceCount:
@@ -684,4 +687,4 @@ paths:
         - qits:agent
 info:
   title: qits-observability API
-  version: 2026.912.163411
+  version: 2026.916.2209

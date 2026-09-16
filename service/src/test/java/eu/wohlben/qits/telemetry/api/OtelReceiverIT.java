@@ -213,7 +213,8 @@ class OtelReceiverIT {
         .statusCode(200)
         .body("startedAt", notNullValue())
         .body("caps.spansPerSource", equalTo(2000))
-        .body("maxTotalBytes", equalTo(67108864))
+        .body("maxTotalBytes", equalTo(268435456))
+        .body("maxBytesPerSource", equalTo(15728640))
         .body("sourceCount", greaterThan(0));
 
     given()

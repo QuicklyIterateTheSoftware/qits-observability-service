@@ -273,7 +273,8 @@ class WorkspaceTelemetryControllerTest {
         .body("caps.spansPerSource", equalTo(2000))
         .body("caps.logsPerSource", equalTo(10000))
         .body("caps.metricSeriesPerSource", equalTo(500))
-        .body("maxTotalBytes", equalTo(67108864))
+        .body("maxTotalBytes", equalTo(268435456))
+        .body("maxBytesPerSource", equalTo(15728640))
         .body("sourceCount", equalTo(1))
         .body("evictedSpans", equalTo(0))
         .body("totalBytes", greaterThan(0));

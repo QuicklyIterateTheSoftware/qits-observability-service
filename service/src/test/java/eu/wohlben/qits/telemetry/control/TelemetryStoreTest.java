@@ -192,6 +192,8 @@ class TelemetryStoreTest {
 
   @Test
   void globalCeilingEvictsFromFattestBucketFirst() {
+    // The global backstop is what is under test here, so take the per-source budget out of the way.
+    store.maxBytesPerSource = Long.MAX_VALUE;
     Map<String, String> chatty = qitsAttributes("repo", "chatty");
     Map<String, String> quiet = qitsAttributes("repo", "quiet");
     store.addLogs(List.of(log("quiet log", quiet, 1)));
@@ -213,6 +215,8 @@ class TelemetryStoreTest {
 
   @Test
   void globalCeilingEvictsOldestAcrossSpansAndLogs() {
+    // The global backstop is what is under test here, so take the per-source budget out of the way.
+    store.maxBytesPerSource = Long.MAX_VALUE;
     Map<String, String> attrs = qitsAttributes("repo", "wt");
     store.addSpans(List.of(span("t-old", "oldest-span", attrs, 1)));
     store.addLogs(List.of(log("newer log", attrs, 2)));
@@ -294,6 +298,91 @@ class TelemetryStoreTest {
     assertEquals(17, store.evictedSpans());
   }
 
+  /**
+   * The byte-tier twin of {@link #oneServiceCannotEvictAnotherNowThatEachHasItsOwnBucket}. Under the
+   * old global-only byte tier this scenario could only come out right by luck of who happened to be
+   * fattest at each eviction; with a per-source budget it is a property.
+   */
+  @Test
+  void oneServiceCannotSpendAnotherServicesByteBudget() {
+    Map<String, String> chatty = Map.of("service.name", "qits-gateway");
+    Map<String, String> quiet = Map.of("service.name", "qits-cd");
+    // Fixed-width bodies so every chatty record estimates identically and "3 records" is exact.
+    int logBytes = TelemetrySizeEstimator.bytesOf(log("chatty 00", chatty, 0));
+    store.maxBytesPerSource = 3L * logBytes;
+
+    store.addLogs(List.of(log("quiet log", quiet, 1)));
+    for (int i = 0; i < 20; i++) {
+      store.addLogs(List.of(log(String.format("chatty %02d", i), chatty, 10 + i)));
+    }
+
+    assertEquals(1, store.logsIn("_service/qits-cd").size(), "the quiet source lost telemetry");
+    List<StoredLog> chattyLogs = store.logsIn("_service/qits-gateway");
+    assertEquals(3, chattyLogs.size(), "the chatty source is held to its own budget");
+    assertEquals("chatty 19", chattyLogs.getLast().body(), "newest chatty log must survive");
+    assertEquals(17, store.evictedLogs(), "every drop is counted, not silent");
+    assertEquals(0, store.evictedSpans());
+
+    StoredSource chattySource =
+        store.sources().stream()
+            .filter(s -> s.key().equals("_service/qits-gateway"))
+            .findFirst()
+            .orElseThrow();
+    assertTrue(chattySource.bytes() <= store.maxBytesPerSource, "chatty source is over budget");
+  }
+
+  /**
+   * The per-source budget is not merely a faster route to the global ceiling's behaviour: with the
+   * shipped 256 MiB backstop nowhere near reached, a single source is still held to its own figure.
+   */
+  @Test
+  void aSourceIsHeldToItsOwnBudgetWithTheGlobalCeilingNowhereNearReached() {
+    Map<String, String> attrs = Map.of("service.name", "qits-platform-edge");
+    int logBytes = TelemetrySizeEstimator.bytesOf(log("record 00", attrs, 0));
+    store.maxBytesPerSource = 5L * logBytes;
+
+    for (int i = 0; i < 50; i++) {
+      store.addLogs(List.of(log(String.format("record %02d", i), attrs, i)));
+    }
+
+    assertTrue(
+        store.totalBytes() < store.maxTotalBytes / 2,
+        "the global ceiling must be nowhere near binding, or this proves nothing");
+    StoredSource source = store.sources().getFirst();
+    assertEquals("_service/qits-platform-edge", source.key());
+    assertTrue(
+        source.bytes() <= store.maxBytesPerSource,
+        "the bucket reports " + source.bytes() + " bytes, over its budget");
+    assertEquals(5, store.logsIn("_service/qits-platform-edge").size());
+    assertEquals(45, store.evictedLogs());
+  }
+
+  /**
+   * A {@code removeFirst()} shortcut at the byte tier would leave the counters behind and the UI
+   * would show a shrinking buffer alongside zero evictions. Pin the accounting and the counting.
+   */
+  @Test
+  void theByteBudgetsEvictionsAreAccountedAndCounted() {
+    Map<String, String> attrs = qitsAttributes("repo", "wt");
+    // Same shape as the records the loop appends, so "room for exactly one of each" is exact.
+    long spanBytes = TelemetrySizeEstimator.bytesOf(span("t0", "s0", attrs, 0));
+    long logBytes = TelemetrySizeEstimator.bytesOf(log("l0", attrs, 0));
+    // Room for exactly one span and one log; the count caps are far away and cannot be the cause.
+    store.maxBytesPerSource = spanBytes + logBytes;
+
+    for (int i = 0; i < 4; i++) {
+      store.addSpans(List.of(span("t" + i, "s" + i, attrs, 2 * i)));
+      store.addLogs(List.of(log("l" + i, attrs, 2 * i + 1)));
+    }
+
+    assertEquals(1, store.spans("repo", "wt").size());
+    assertEquals(1, store.logs("repo", "wt").size());
+    assertEquals(spanBytes + logBytes, store.totalBytes(), "byte accounting drifted");
+    assertEquals(3, store.evictedSpans(), "span evictions at the byte tier must be counted");
+    assertEquals(3, store.evictedLogs(), "log evictions at the byte tier must be counted");
+    assertEquals(0, store.droppedMetricSeries());
+  }
+
   @Test
   void evictionCountersCountWhatWasDropped() {
     store.maxSpansPerWorkspace = 1;
@@ -362,13 +451,18 @@ class TelemetryStoreTest {
 
   /**
    * §1.4 of the observability-UI plan argued from arithmetic that the count caps bind before the
-   * byte ceiling, and the span cap was lowered to 2,000 on that basis. This turns the argument into
-   * an assertion against the real estimator: if a future change makes spans fatter, or the caps
-   * rise, the ceiling stops being unreachable and the "report counts, not bytes" advice in the DTO
-   * javadoc — and the UI built on it — goes wrong quietly.
+   * byte tier, and the DTO javadoc told operators to read counts rather than bytes on that basis.
+   * The 2026-09-16 dev measurement retired that argument — 18 sources, nine of them pinned at the
+   * span cap, 91.5% of the then-64 MiB ceiling — and the per-source byte budget was added precisely
+   * so the opposite is true: a source at both count caps estimates well <em>above</em> its budget,
+   * so the budget binds before the log count cap ever does, deliberately.
+   *
+   * <p>The fixtures below are the same guard the old test carried: real platform-shaped records run
+   * through the real estimator, so estimator drift or a cap change breaks this rather than quietly
+   * re-inverting the relationship the store and the DTO javadoc are written around.
    */
   @Test
-  void theCountCapsBindBeforeTheGlobalByteCeiling() {
+  void thePerSourceByteBudgetBindsBeforeTheLogCountCap() {
     // A Quarkus server span as the platform actually exports one: ~10 span attributes on top of
     // ~8 resource attributes, http-route-shaped names.
     Map<String, String> resource =
@@ -411,18 +505,59 @@ class TelemetryStoreTest {
             resource,
             1L);
 
-    int spanBytes = TelemetrySizeEstimator.bytesOf(realistic);
-    // Ten platform processes, each its own bucket since the service.name re-bucketing.
-    long worstCase = 10L * store.maxSpansPerWorkspace * spanBytes;
+    // An access-log record as qits-platform-edge's OTel logging bridge exports one: the same
+    // resource shape, a request line for a body, and the handful of attributes the bridge adds.
+    Map<String, String> logResource =
+        Map.of(
+            "service.name", "qits-platform-edge",
+            "service.version", "1.0.0-SNAPSHOT",
+            "telemetry.sdk.name", "opentelemetry",
+            "telemetry.sdk.language", "java",
+            "telemetry.sdk.version", "1.54.0",
+            "host.name", "qits-cd-qits-qits-platform-edge-7f31ac02",
+            "os.type", "linux",
+            "process.runtime.name", "GraalVM Native Image");
+    StoredLog realisticLog =
+        new StoredLog(
+            1_000_000_000L,
+            9,
+            "INFO",
+            "172.18.0.5 - - [16/Sep/2026:09:41:07 +0000] \"GET"
+                + " /observability/api/telemetry/sources HTTP/1.1\" 200 4213"
+                + " \"https://qits.example/observability/\" \"Mozilla/5.0\" 7ms",
+            "0af7651916cd43dd8448eb211c80319c",
+            "b7ad6b7169203331",
+            "qits-platform-edge",
+            Map.of(
+                "loggerName", "io.quarkus.http.access-log",
+                "thread.name", "vert.x-eventloop-thread-3",
+                "log.level", "INFO"),
+            logResource,
+            1L);
 
-    assertEquals(2000, store.maxSpansPerWorkspace, "the plan's cap");
+    int spanBytes = TelemetrySizeEstimator.bytesOf(realistic);
+    int logBytes = TelemetrySizeEstimator.bytesOf(realisticLog);
+    long atBothCountCaps =
+        (long) store.maxSpansPerWorkspace * spanBytes + (long) store.maxLogsPerWorkspace * logBytes;
+
+    assertEquals(2000, store.maxSpansPerWorkspace, "the plan's span cap");
+    assertEquals(10000, store.maxLogsPerWorkspace, "the shipped log cap");
+    assertEquals(15L * 1024 * 1024, store.maxBytesPerSource, "the shipped per-source budget");
     assertTrue(
-        worstCase < store.maxTotalBytes,
-        "ten full span buckets estimate at "
-            + worstCase
-            + " bytes, which must stay under the "
-            + store.maxTotalBytes
-            + "-byte ceiling — otherwise the ceiling binds first and the cap needs revisiting");
+        atBothCountCaps > store.maxBytesPerSource,
+        "one source at both count caps estimates at "
+            + atBothCountCaps
+            + " bytes ("
+            + spanBytes
+            + " B/span, "
+            + logBytes
+            + " B/log), which must exceed the "
+            + store.maxBytesPerSource
+            + "-byte per-source budget — otherwise the byte tier is unreachable again and the "
+            + "fairness this store is built on is back to being decided by the count caps");
+    assertTrue(
+        store.maxBytesPerSource < store.maxTotalBytes,
+        "the global ceiling is a backstop above the per-source budget, not below it");
   }
 
   @Test

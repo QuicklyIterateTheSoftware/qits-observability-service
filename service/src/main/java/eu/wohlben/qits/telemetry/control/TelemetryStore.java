@@ -49,17 +49,31 @@ import org.jboss.logging.Logger;
  * {@code _service} would collide with the second tier; that is the cost of a flat key space and it
  * is not worth defending against.)
  *
- * <p>Bounding is two-tier: per-source count caps (spans/logs/metric series) enforced inside the
- * bucket monitor, and a global byte ceiling enforced afterwards by evicting the oldest records from
- * the <em>fattest</em> bucket — so one chatty service pays for its own volume instead of evicting a
- * quieter workspace's telemetry. Lock order is always {@code evictionLock → bucket monitor}, and
- * appenders never take {@code evictionLock} while holding a bucket monitor, so the two tiers can't
- * deadlock.
+ * <p>Bounding is three-tier. First, per-source <em>count</em> caps (spans/logs/metric series),
+ * enforced inside the bucket monitor. Second, a per-source <em>byte</em> budget ({@link
+ * #maxBytesPerSource}), enforced in the same monitor immediately afterwards — this is the tier that
+ * decides what a source retains, and it decides it from that source's own volume alone. Third, a
+ * global byte ceiling ({@link #maxTotalBytes}), which evicts the oldest record from the
+ * <em>fattest</em> bucket; it exists now to bound this process's heap, not to arbitrate between
+ * sources. Lock order is always {@code evictionLock → bucket monitor}, and appenders never take
+ * {@code evictionLock} while holding a bucket monitor, so the tiers can't deadlock — the byte budget
+ * takes no lock of its own, it runs under the monitor the appender already holds.
  *
- * <p>Splitting one bucket into ten multiplied the worst-case retained set, so the span cap dropped
- * from 5,000 to 2,000 in the same change: ten sources at 2,000 spans is roughly 40 MB by {@link
- * TelemetrySizeEstimator}'s arithmetic, which stays under the 64 MiB ceiling by count as well as by
- * bytes. {@code TelemetryStoreTest} asserts that relationship rather than leaving it as a comment.
+ * <p>The budget was chosen against a measurement, not against arithmetic: on 2026-09-16 the dev
+ * deployment held 18 sources and 61,423,348 of 67,108,864 bytes — 91.5% of the then-64 MiB ceiling —
+ * with nine buckets pinned at the 2,000-span cap at roughly 5.6 MB each. By {@link
+ * TelemetrySizeEstimator}'s arithmetic a platform span estimates at about 2,800 bytes and an
+ * access-log-shaped record at about 1,950 bytes, so a source at both count caps would retain some
+ * 25 MB; 15 MiB per source is the figure that makes a chatty edge pay for its own volume well before
+ * the log count cap does. {@code TelemetryStoreTest} pins that inequality against the real estimator
+ * with deliberately lean fixtures, so drift in either direction breaks a test rather than a
+ * deployment.
+ *
+ * <p><strong>If the global backstop ever starts binding, lower {@code
+ * qits.telemetry.max-bytes-per-source} — do not raise {@code qits.telemetry.max-total-bytes}.</strong>
+ * Raising the ceiling is the tempting move and it walks straight back into the failure this design
+ * removes: a binding global tier means which records survive in one bucket is decided by what another
+ * bucket happens to be holding.
  */
 @ApplicationScoped
 public class TelemetryStore {
@@ -77,8 +91,11 @@ public class TelemetryStore {
 
   // Package-visible so the plain-JUnit store test can shrink them; injected values come from
   // qits.telemetry.* when running in Quarkus (defaults here, pattern of qits.services.*).
-  // The keys keep their historical `-per-workspace` spelling — a bucket is now a source, but the
-  // knob is documented and renaming it would silently drop any deployment's override.
+  // The three count keys keep their historical `-per-workspace` spelling — a bucket is now a
+  // source, but the knob is documented and renaming it would silently drop any deployment's
+  // override. `max-bytes-per-source` is spelled the other way on purpose rather than matching its
+  // three neighbours: it is brand new, so no deployment can be overriding it, and a new key gets
+  // the word the code and the wire actually use instead of inheriting a compatibility spelling.
   @ConfigProperty(name = "qits.telemetry.max-spans-per-workspace", defaultValue = "2000")
   int maxSpansPerWorkspace = 2000;
 
@@ -88,8 +105,11 @@ public class TelemetryStore {
   @ConfigProperty(name = "qits.telemetry.max-metric-series-per-workspace", defaultValue = "500")
   int maxMetricSeriesPerWorkspace = 500;
 
-  @ConfigProperty(name = "qits.telemetry.max-total-bytes", defaultValue = "67108864")
-  long maxTotalBytes = 64L * 1024 * 1024;
+  @ConfigProperty(name = "qits.telemetry.max-bytes-per-source", defaultValue = "15728640")
+  long maxBytesPerSource = 15L * 1024 * 1024;
+
+  @ConfigProperty(name = "qits.telemetry.max-total-bytes", defaultValue = "268435456")
+  long maxTotalBytes = 256L * 1024 * 1024;
 
   // Null in the plain-JUnit store test (it news up the store directly, no CDI); guarded before use.
   @Inject TelemetryChangePublisher changePublisher;
@@ -136,6 +156,7 @@ public class TelemetryStore {
         while (buffer.spans.size() > maxSpansPerWorkspace) {
           evictOldestSpan(buffer);
         }
+        enforceSourceBudget(buffer);
       }
     }
     enforceGlobalCeiling();
@@ -151,6 +172,7 @@ public class TelemetryStore {
         while (buffer.logs.size() > maxLogsPerWorkspace) {
           evictOldestLog(buffer);
         }
+        enforceSourceBudget(buffer);
       }
     }
     enforceGlobalCeiling();
@@ -171,13 +193,16 @@ public class TelemetryStore {
                 "Telemetry metric-series cap (%d) reached for a workspace; new series are dropped",
                 maxMetricSeriesPerWorkspace);
           }
-          continue;
+          continue; // nothing was added, so there is no budget to re-check
         }
         buffer.metrics.put(key, point);
         if (previous != null) {
           account(buffer, -TelemetrySizeEstimator.bytesOf(previous));
         }
         account(buffer, TelemetrySizeEstimator.bytesOf(point));
+        // Metrics are never evicted, but they do count towards buffer.bytes — so a metrics append
+        // can push a source over its budget, and spans/logs answer for it.
+        enforceSourceBudget(buffer);
       }
     }
     enforceGlobalCeiling();
@@ -362,9 +387,17 @@ public class TelemetryStore {
     return startedAt;
   }
 
-  /** The configured ceiling {@link #totalBytes} is held under. */
+  /** The configured backstop {@link #totalBytes} is held under, across every bucket. */
   public long maxTotalBytes() {
     return maxTotalBytes;
+  }
+
+  /**
+   * The byte budget each single source is held to — the tier that decides what a source retains,
+   * and the one to lower if the global backstop ever starts binding.
+   */
+  public long maxBytesPerSource() {
+    return maxBytesPerSource;
   }
 
   /** The per-source count caps, in the order the store enforces them. */
@@ -480,10 +513,49 @@ public class TelemetryStore {
   }
 
   /**
+   * The victim rule both byte tiers share: drop this bucket's oldest span-or-log, whichever arrived
+   * first, preferring the span on a tie. Metrics are never evicted — they replace in place and are
+   * series-capped, so their footprint is already bounded.
+   *
+   * <p>Caller must hold the buffer monitor. Returns false if the bucket has nothing evictable, which
+   * is what stops both tiers spinning against a bucket holding only metrics.
+   */
+  private boolean evictOldestRecord(WorkspaceBuffer buffer) {
+    StoredSpan oldestSpan = buffer.spans.peekFirst();
+    StoredLog oldestLog = buffer.logs.peekFirst();
+    if (oldestSpan == null && oldestLog == null) {
+      return false;
+    }
+    boolean evictSpan =
+        oldestLog == null
+            || (oldestSpan != null && oldestSpan.receivedAtMillis() <= oldestLog.receivedAtMillis());
+    if (evictSpan) {
+      evictOldestSpan(buffer);
+    } else {
+      evictOldestLog(buffer);
+    }
+    return true;
+  }
+
+  /**
+   * Hold one source to its own byte budget. This is the fairness tier: what a bucket retains is
+   * decided by that bucket's volume and nothing else.
+   *
+   * <p>Caller must hold the buffer monitor — the appenders already do, so this takes no lock and
+   * adds nothing to the {@code evictionLock → bucket monitor} order.
+   */
+  private void enforceSourceBudget(WorkspaceBuffer buffer) {
+    while (buffer.bytes > maxBytesPerSource && evictOldestRecord(buffer)) {
+      // evictOldestRecord accounts and counts; its false return is what stops the spin when
+      // only metrics remain
+    }
+  }
+
+  /**
    * While over the global byte ceiling, evict the oldest span-or-log from whichever bucket
-   * currently retains the most bytes. Metrics are never evicted here — they replace in place and
-   * are series-capped, so their footprint is already bounded; a bucket holding only metrics is
-   * simply skipped.
+   * currently retains the most bytes. A heap backstop, not a fairness tier: with the per-source
+   * budget in force this should not bind in normal operation, and if it does the answer is a smaller
+   * {@link #maxBytesPerSource}, not a larger ceiling. A bucket holding only metrics is skipped.
    */
   private void enforceGlobalCeiling() {
     if (totalBytes.get() <= maxTotalBytes) {
@@ -506,19 +578,8 @@ public class TelemetryStore {
           return; // nothing evictable (only metrics remain) — give up rather than spin
         }
         synchronized (fattest) {
-          StoredSpan oldestSpan = fattest.spans.peekFirst();
-          StoredLog oldestLog = fattest.logs.peekFirst();
-          if (oldestSpan == null && oldestLog == null) {
+          if (!evictOldestRecord(fattest)) {
             continue; // raced with another evictor; re-pick
-          }
-          boolean evictSpan =
-              oldestLog == null
-                  || (oldestSpan != null
-                      && oldestSpan.receivedAtMillis() <= oldestLog.receivedAtMillis());
-          if (evictSpan) {
-            evictOldestSpan(fattest);
-          } else {
-            evictOldestLog(fattest);
           }
         }
       }
