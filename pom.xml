@@ -58,7 +58,7 @@
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
         <quarkus.platform.version>3.34.6</quarkus.platform.version>
-        <qits.auth-core.version>2026.914.173515</qits.auth-core.version>
+        <qits.auth-core.version>2026.915.220910</qits.auth-core.version>
         <!-- The user-story framework (test scope): the seven @UserStory classes under
              service/src/test/java/…/telemetry/stories (plus TelemetryBootstrapIT, which owns the
              boot) are written against it, so a run that boots the packaged artifact also
