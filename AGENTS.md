@@ -327,16 +327,19 @@ pipeline deliberately does not build (`-Dquarkus.quinoa=false`):
     ./mvnw verify -DskipITs=false -Dquarkus.quinoa=false \
       "-Dit.test=TelemetryBootstrapIT,BufferEvictionIT,ParentTierIT,UnreadableExportIT,OperatorInvestigationIT,QuietReadsIT,OneDoorEachIT"
 
-**Add every new story class to that list in the userflow half of
-`.config/qits/ci-event-release-request.yml` in the same commit.** A class that is not named does not
-run there, and its story disappears from the published bundle while the build stays green.
+**Add every new story class to `.config/qits/userflow-stories` in the same commit** — one class name
+per line, which the `java-service` archetype turns into the verify step's `-Dit.test`. A class that
+is not named does not run there, and its story disappears from the published bundle while the build
+stays green.
 `rm -rf service/target/userstories` before inspecting a run: a renamed story leaves a stale
 directory behind and the site index rescans whatever it finds.
 
 That half publishes the reports as the docs bundle `@userflows/qits-observability` — once per
 release-request fold now, not per commit, because per-push CI is retired and the QA pipeline runs
-for release requests alone. It stays **non-gating by design**: it declares `gating: false`, so a red
-story shows the run red without holding the fold at qits-projects' release gate.
+for release requests alone. It **gates, like every step of the composed pipeline**: a red story is a
+red verdict for the whole fold and holds it at qits-projects' release gate. There is no per-step
+exemption to reach for — qits-ci refuses the key outright. What the ordering buys is narrower: the
+verify step runs LAST, so by the time a story can fail the build step has already done its work.
 
 ## Known broken, not this rollout's to fix
 
