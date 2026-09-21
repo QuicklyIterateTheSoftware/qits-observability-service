@@ -132,6 +132,30 @@ ENV QITS_MAVEN_CENTRAL_URL=$QITS_MAVEN_CENTRAL_URL
 # than this file's, while the bare file mount is served identically by every frontend version. See
 # qits-buildkit-plan.md in the wrapper. Absent secrets leave both variables empty — the `|| true`,
 # every hand build's state — which `.qits-maven-settings.xml` reads exactly as it reads unset.
+#
+# --- three attempts, and why only at a transport failure -------------------------------------------
+# qits-artifacts — the maven repository this resolves against — declares `update_order: stop-first`,
+# so on every one of its several daily deploys the `dev-qits-artifacts` swarm alias resolves to
+# nothing for ~10 seconds. Maven asks once, records the failed release resolution and the gate goes
+# red on a commit that was fine (2026-09-21). Three attempts 30s apart cover that window twice over.
+#
+# `-U` on attempts 2 and 3 is the load-bearing half, not a flourish. The failed resolution is cached
+# in the local repository, and the local repository lives on across attempts because they are all in
+# one layer, so a plain re-run re-reads the cached failure and the loop is over in under a second
+# having changed nothing. Attempt 1 goes without it: no reason to force update checks on a build
+# that is about to succeed.
+#
+# The grep is narrow on purpose — the mirror id AND a transport-level phrase, on the same line. A
+# compilation error, a failing test or a genuine 404 for a version nobody published carries neither,
+# so it leaves with maven's own exit code on the first attempt and a real red build stays red in
+# seconds instead of costing three native compiles. The rc file is how that exit code survives the
+# pipe: `./mvnw … | tee` yields tee's status, and `set -o pipefail` is a bashism this stage must not
+# bet on (a `SHELL` instruction would fix the shell but leak into the runtime stage below).
+#
+# One failure a retry cannot repair: a transport error late enough that Quinoa has already MOVED the
+# bundle out of dist/, where the next attempt dies on the missing bundle instead. The loop does not
+# make that worse — that death carries no transport signature, so it exits on its own terms — and
+# every failure observed so far is in dependency collection, well before Quinoa runs.
 RUN --mount=type=secret,id=qits-client-id \
     --mount=type=secret,id=qits-client-secret \
     export QITS_MAVEN_AUTH_USR="$(cat /run/secrets/qits-client-id 2>/dev/null || true)"; \
@@ -143,17 +167,30 @@ RUN --mount=type=secret,id=qits-client-id \
       echo "in service/src/main/webui first — this stage cannot, see the Quinoa flags above." >&2; \
       exit 1; }; \
     cp -a "$d" "$d.layer" && rm -rf "$d" && mv "$d.layer" "$d" && \
-    ./mvnw -B -ntp -s .qits-maven-settings.xml -pl service -am package -Dnative -DskipTests \
-      -Dqits.maven.repository.url="$QITS_MAVEN_REPOSITORY_URL" \
-      -Dquarkus.native.native-image-xmx=4g \
-      -Dquarkus.quinoa.package-manager-install=true \
-      -Dquarkus.quinoa.package-manager-install.node-version=22.22.0 \
-      -Dquarkus.quinoa.package-manager-command.install=--version \
-      -Dquarkus.quinoa.package-manager-command.ci=--version \
-      -Dquarkus.quinoa.package-manager-command.build=--version \
-      org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeBom \
-      -DoutputFormat=json -DoutputName=sbom -DschemaVersion=1.6 \
-      -Dcyclonedx.skipNotDeployed=false
+    n=1 && \
+    t='Name or service not known|Connection refused|Connection reset|No route to host|Read timed out' && \
+    while :; do \
+      u=; [ "$n" -gt 1 ] && u=-U; \
+      { ./mvnw -B -ntp -s .qits-maven-settings.xml $u -pl service -am package -Dnative -DskipTests \
+          -Dqits.maven.repository.url="$QITS_MAVEN_REPOSITORY_URL" \
+          -Dquarkus.native.native-image-xmx=4g \
+          -Dquarkus.quinoa.package-manager-install=true \
+          -Dquarkus.quinoa.package-manager-install.node-version=22.22.0 \
+          -Dquarkus.quinoa.package-manager-command.install=--version \
+          -Dquarkus.quinoa.package-manager-command.ci=--version \
+          -Dquarkus.quinoa.package-manager-command.build=--version \
+          org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeBom \
+          -DoutputFormat=json -DoutputName=sbom -DschemaVersion=1.6 \
+          -Dcyclonedx.skipNotDeployed=false; \
+        echo $? >/tmp/mvn.rc; } 2>&1 | tee /tmp/mvn.log; \
+      rc=$(cat /tmp/mvn.rc); \
+      [ "$rc" = 0 ] && break; \
+      [ "$n" -ge 3 ] && exit "$rc"; \
+      grep -Eq "from/to qits-maven-network.*($t)" /tmp/mvn.log || exit "$rc"; \
+      echo "the qits-maven repository was unreachable; retrying in 30s (attempt $((n + 1)) of 3)" >&2; \
+      sleep 30; \
+      n=$((n + 1)); \
+    done
 # cyclonedx.skipNotDeployed=false is LOAD-BEARING, measured on qits-artifacts-service's first SBOM
 # release (2026.902.45658): the service module skips maven-deploy — it ships as this image, not as a
 # jar — and the plugin SKIPS deploy-skipping modules by default, with a green build and one INFO
