@@ -68,7 +68,7 @@
              carries a hand-copied StoryNetworkFilter.
              Released out of libs/qits-userflows into the platform's own Maven repository, which is
              the same place qits-auth-core above comes from. -->
-        <qits.userflows.version>2026.917.70407</qits.userflows.version>
+        <qits.userflows.version>2026.920.210236</qits.userflows.version>
         <qits.maven.repository.url>http://registry.dev.localhost:8080/artifacts/maven/maven</qits.maven.repository.url>
 
         <!-- Not in the platform BOM, so both are pinned here: mcp-server 2.0.0.CR2 provides the
