@@ -8,10 +8,6 @@
 # branch to deploy from here, in thirteen copies of one platform-wide answer, and it went with the
 # entry-branch promotion and the release door on 2026-09-03.
 #
-# ENVIRONMENT service: every environment runs its own instance, and a released version deploys into
-# whichever tier the deployment request names.
-deployment_target: environment
-
 # WHAT THIS REPOSITORY DEPLOYS AS, held still across the repository rename. The repository is
 # qits-observability-service now; the application is still qits-observability, so nothing that is
 # running moves: the swarm service and its wire alias, the container, the image
