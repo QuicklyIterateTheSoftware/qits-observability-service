@@ -48,7 +48,7 @@ import java.util.Map;
  *
  * <p><b>This service's own OTLP exporter.</b> qits-observability is the platform's telemetry plane
  * and it is also a producer: the shipped configuration points its own SDK at {@code
- * http://qits-observability:8080/observability/api/otel} — <i>itself</i> — so that the one service
+ * http://dev-qits-observability:8080/observability/api/otel} — <i>itself</i> — so that the one service
  * whose latency and errors would otherwise be invisible reports them too. The SDK is disabled here,
  * and the honest reasons are three:
  *
