@@ -11,8 +11,8 @@ import jakarta.inject.Inject;
 
 /**
  * The live stream: what this receiver takes in (logs, spans, metrics), filtered per connection and
- * pushed as it arrives. The wire protocol is {@code qits-observe-plan.md} in the superproject; the
- * {@code qits observe} command is its client.
+ * pushed as it arrives. The wire protocol is README "The live stream"; the {@code qits observe}
+ * command is its client.
  *
  * <p>A connection starts subscribed to nothing. Each {@code {"subscribe": [...]}} frame replaces
  * its filter whole. The server then pushes one frame per matching record, plus {@code

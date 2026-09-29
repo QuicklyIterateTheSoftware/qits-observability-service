@@ -13,8 +13,8 @@ import java.util.Map;
 
 /**
  * What one live-stream connection asked for: the groups of its last {@code {"subscribe": [...]}}
- * frame. The wire protocol is {@code qits-observe-plan.md} in the superproject, shared with the
- * {@code qits observe} command.
+ * frame. The wire protocol is README "The live stream", shared with the {@code qits observe}
+ * command.
  *
  * <p>A record matches when <b>any</b> group matches (OR), and a group matches when <b>all</b> its
  * conditions hold (AND). A group with no conditions matches everything. No groups at all matches

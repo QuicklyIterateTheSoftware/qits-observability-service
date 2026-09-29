@@ -20,7 +20,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * The matcher, field by op, against records built by hand. Plain JUnit: {@link TelemetryFilter}
- * needs no Quarkus. The table it implements is {@code qits-observe-plan.md} in the superproject.
+ * needs no Quarkus. The table it implements is in README "The live stream".
  */
 class TelemetryFilterTest {
 

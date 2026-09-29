@@ -131,8 +131,8 @@ identity, are what keep one project's telemetry out of another's.
 ## The live stream
 
 `/observability/stream` (`api/TelemetryStreamSocket`) pushes ingested records to `qits observe`,
-filtered on the server. The wire protocol is `qits-observe-plan.md` in the superproject, shared with
-the CLI: change it there first, and on both sides. README "The live stream" has the summary.
+filtered on the server. README "The live stream" is the wire protocol, shared with the CLI:
+change it there first, and on both sides.
 
 - **The hook is in `OtelReceiverResource`**, after each `store.add*`, and nowhere else. Not in
   `TelemetryStore` (it stays CDI-free) and not on `TelemetryChanged` (silent for all but workspace

@@ -267,7 +267,7 @@ is invisible to the local ingest.
 
 `/observability/stream` is a WebSocket that pushes what this receiver takes in (logs, spans with
 their events, metrics) as it arrives, filtered per connection on the server. `qits observe` is its
-client. The wire protocol is `qits-observe-plan.md` in the superproject.
+client. This section is the wire protocol, shared with the CLI. Change it here, and on both sides.
 
 - **Auth.** `qits:admin`, checked on the upgrade. A person's `qits` token (`aud=qits-platform`, roles
   in `groups`) or the edge's forward-auth headers both work. No credential is 401, no role is 403.
@@ -277,6 +277,30 @@ client. The wire protocol is `qits-observe-plan.md` in the superproject.
   and the old filters stay. Each matching record arrives as `{"kind", "receivedAtMillis", "source",
   "record"}`, where `record` is the DTO the query API returns for that kind and `source` is the
   bucket key. Live only: no replay.
+- **Filters.** A group is `{"conditions": [condition, …]}`. A condition is
+  `{"field", "op", "value"}`, plus `"key"` for the two keyed fields:
+
+  | field | log | span | metric |
+  | --- | --- | --- | --- |
+  | `kind` | `log` | `span` | `metric` |
+  | `service`, `attribute` (keyed), `resource` (keyed) | yes | yes | yes |
+  | `traceId`, `spanId` | yes | yes | — |
+  | `severity` (the number 1-24), `body` | yes | — | — |
+  | `name` | — | yes | yes |
+  | `status`, `event` (any span event's name) | — | yes | — |
+
+  | op | value | holds when |
+  | --- | --- | --- |
+  | `exact` | a string | the field equals it, case included |
+  | `prefix` | a string | the field starts with it, case included |
+  | `contains` | a string | the field contains it, any case |
+  | `exists` | `true` / `false` | the field is present / absent |
+  | `min` | `TRACE` … `FATAL` or 1-24 | `severity` only: at or above it |
+
+  A field a kind does not have (`—`), or has empty, is absent: it fails every op but
+  `exists: false`. Numbers and booleans in `value` compare as their text. `control/TelemetryFilter`
+  is the reader and `TelemetryFilterTest` pins the table; `qits observe --filter` writes the same
+  groups in a compact syntax.
 - **Back-pressure.** Ingest never waits for a reader. One dispatcher thread takes each batch from a
   bounded backlog (`qits.telemetry.stream.dispatch-backlog`, 1024 batches). Each connection queues
   at most `qits.telemetry.stream.queue-size` frames (256). A record that finds the queue full is
