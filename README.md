@@ -222,6 +222,7 @@ by SDKs, not something a generated client calls; everything else is in `docs/ope
 | `GET …/telemetry/traces` | the trace list: root name, duration, span count, error flag, `rootMissing` |
 | `GET …/telemetry/traces/{traceId}` | one trace's spans and its correlated logs |
 | `GET …/telemetry/{errors,slow-spans,logs,metrics}` | as before |
+| `POST …/telemetry/records/search` | the live stream asked about the past — see [Searching the buffer](#searching-the-buffer) |
 
 **Naming a bucket.** Every query above takes either `?source=<key>` or the original
 `?repositoryId=&workspaceId=` pair, and `source` wins when both are given. The key comes from
@@ -306,6 +307,52 @@ client. This section is the wire protocol, shared with the CLI. Change it here, 
   at most `qits.telemetry.stream.queue-size` frames (256). A record that finds the queue full is
   dropped, and when the queue next runs empty the reader gets `{"dropped": N}`. The server pings
   every 30 seconds so the edge keeps an idle stream open.
+
+## Searching the buffer
+
+`POST /observability/api/telemetry/records/search` answers what the live stream *would have*
+pushed, from what is still buffered, in a closed window. `qits observe query` is its client. Roles
+are the query API's: `qits:admin` or `qits:agent`. A POST because the body is the filter; it
+changes nothing.
+
+```json
+{
+  "subscribe": [ {"conditions": [ {"field": "severity", "op": "min", "value": "ERROR"} ]} ],
+  "since": "2026-10-01T18:00:00Z",
+  "until": "2026-10-01T19:00:00Z",
+  "limit": 100,
+  "source": "_service/qits-ci"
+}
+```
+
+```json
+{ "records": [ {"kind", "receivedAtMillis", "source", "record"}, … ], "truncated": false, "bufferedSince": "2026-10-01T12:03:11Z" }
+```
+
+- **`subscribe`** is a live subscribe frame's groups, verbatim, read by the same code
+  (`TelemetryFilter.parseGroups`) and matched by the same `TelemetryFilter.matches` the live feed
+  calls. So a filter means one thing live and searched, and `[]` matches nothing here too. It is the
+  one required field; an unreadable filter is a 400 whose message is the socket's `{"error": …}`
+  reason, prefixed `unreadable filter: `.
+- **`since` / `until`** are ISO-8601 instants, both inclusive. No `since` searches everything still
+  buffered, no `until` is now, `since` after `until` is a 400, and so is an instant that does not
+  parse. A record is in the window by **its own time** — a log's time, a span's start, a metric
+  point's time (the ingest stamp only where an exporter left that at zero) — not by when it arrived.
+  This is the one read that does not window on the ingest stamp.
+- **A metric only by its latest point.** The buffer keeps one point per series and replaces it in
+  place, so a series that reported inside the window and again after it is not found there.
+- **`limit`** is 1..1000, default 200, and a 400 outside that, as on every list here. When more
+  match, the **newest** `limit` are kept and returned **oldest first**, and `truncated` is true.
+- **`source`** is a key from `…/telemetry/sources`; absent searches every source, as the live
+  stream does.
+- **`records`** are the live stream's frames, unchanged, so a client prints both with one reader.
+- **`bufferedSince`** is the ingest stamp of the oldest record still held across the searched
+  sources, null when they hold nothing. A window that starts before it reaches past what the buffer
+  remembers: an empty answer there is not proof of absence.
+
+`control/TelemetryRecordSearch` is the search; `TelemetryRecordSearchTest` pins the window, the
+truncation, the metric rule and parity with the live feed (one record, one filter, the same frame
+both ways), and `api/TelemetryRecordSearchControllerTest` the HTTP shape and the 400s.
 
 ## Authentication
 

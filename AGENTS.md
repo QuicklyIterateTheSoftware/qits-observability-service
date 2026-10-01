@@ -185,7 +185,7 @@ change it there first, and on both sides.
 
   It runs as a `@QuarkusTest`, so **the test classpath is indexed too**: any `@Path` resource under
   `src/test` lands in the committed document unless it is `@Operation(hidden = true)`. That is why
-  `IdentityEchoResource` carries the annotation. The document should hold exactly the eight
+  `IdentityEchoResource` carries the annotation. The document should hold exactly the nine
   telemetry query operations — ingest is hidden on purpose.
 
   Response records nested in the controller generate as `Response`, `Response1`, `Response2`… and a

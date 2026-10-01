@@ -74,6 +74,12 @@ public class TelemetryQueryService {
     return store.sources().stream().map(TelemetryQueryService::toSourceDto).toList();
   }
 
+  /** The live stream asked about the past: see {@link TelemetryRecordSearch}. */
+  public TelemetryRecordSearch.Result searchRecords(
+      TelemetryFilter filter, String source, Instant since, Instant until, int limit) {
+    return TelemetryRecordSearch.search(store, filter, source, since, until, limit);
+  }
+
   /** The buffer's own state: when it started holding this, what it caps at, what it has dropped. */
   public TelemetryStoreStateDto storeState() {
     return new TelemetryStoreStateDto(

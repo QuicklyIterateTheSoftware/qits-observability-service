@@ -76,6 +76,44 @@ components:
           format: int32
         truncated:
           type: boolean
+    SearchTelemetryRecordsRequest:
+      type: object
+      required:
+      - subscribe
+      properties:
+        subscribe:
+          type: array
+          items: {}
+          description: "The groups of a live subscribe frame, exactly as README \"\
+            The live stream\" defines them: [{\"conditions\": [{\"field\", \"op\"\
+            , \"value\", \"key\"?}]}]. Groups OR, conditions AND; [] matches nothing."
+        since:
+          type: string
+          format: date-time
+          description: "Inclusive lower bound, an ISO-8601 instant. Absent: no lower\
+            \ bound."
+        until:
+          type: string
+          format: date-time
+          description: "Inclusive upper bound, an ISO-8601 instant. Absent: now."
+        limit:
+          type: integer
+          format: int32
+          description: "At most this many records, 1..1000. Absent: 200."
+        source:
+          type: string
+          description: "A key from /telemetry/sources. Absent: every source."
+    SearchTelemetryRecordsResponse:
+      type: object
+      properties:
+        records:
+          type: array
+          items:
+            $ref: "#/components/schemas/TelemetryStreamFrame"
+        truncated:
+          type: boolean
+        bufferedSince:
+          $ref: "#/components/schemas/Instant"
     SpanEvent:
       type: object
       properties:
@@ -293,6 +331,17 @@ components:
         droppedMetricSeries:
           type: integer
           format: int64
+    TelemetryStreamFrame:
+      type: object
+      properties:
+        kind:
+          type: string
+        receivedAtMillis:
+          type: integer
+          format: int64
+        source:
+          type: string
+        record: {}
     TelemetryTraceDto:
       type: object
       properties:
@@ -483,6 +532,34 @@ paths:
         "403":
           description: Not Allowed
       summary: Metrics
+      tags:
+      - Workspace Telemetry Controller
+      security:
+      - SecurityScheme:
+        - qits:admin
+        - qits:agent
+  /observability/api/telemetry/records/search:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchTelemetryRecordsRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchTelemetryRecordsResponse"
+        "401":
+          description: Not Authorized
+        "403":
+          description: Not Allowed
+        "400":
+          description: Bad Request
+      summary: Search Records
       tags:
       - Workspace Telemetry Controller
       security:
@@ -687,4 +764,4 @@ paths:
         - qits:agent
 info:
   title: qits-observability API
-  version: 2026.922.221704
+  version: 2026.930.90310

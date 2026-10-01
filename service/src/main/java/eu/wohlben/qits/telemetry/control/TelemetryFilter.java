@@ -245,7 +245,17 @@ public final class TelemetryFilter {
     if (frame == null || !frame.isObject()) {
       throw bad("a frame must be a JSON object: {\"subscribe\": [...]}");
     }
-    JsonNode subscribe = frame.get("subscribe");
+    return parseGroups(frame.get("subscribe"));
+  }
+
+  /**
+   * Parses the groups a subscribe frame carries under {@code "subscribe"}. The live socket reaches
+   * this through {@link #parse}; {@code POST …/telemetry/records/search} calls it directly with its
+   * body's {@code subscribe}, so a filter means one thing live and searched.
+   *
+   * @throws IllegalArgumentException with the reason, worded as the socket's {@code {"error": …}}
+   */
+  public static TelemetryFilter parseGroups(JsonNode subscribe) {
     if (subscribe == null || !subscribe.isArray()) {
       throw bad("'subscribe' must be an array of groups");
     }

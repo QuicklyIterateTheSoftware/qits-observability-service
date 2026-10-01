@@ -1,24 +1,33 @@
 package eu.wohlben.qits.telemetry.api;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import eu.wohlben.qits.telemetry.control.TelemetryFilter;
 import eu.wohlben.qits.telemetry.control.TelemetryQueryService;
+import eu.wohlben.qits.telemetry.control.TelemetryRecordSearch;
 import eu.wohlben.qits.telemetry.dto.TelemetryErrorGroupDto;
 import eu.wohlben.qits.telemetry.dto.TelemetryLogDto;
 import eu.wohlben.qits.telemetry.dto.TelemetryMetricDto;
 import eu.wohlben.qits.telemetry.dto.TelemetrySourceDto;
 import eu.wohlben.qits.telemetry.dto.TelemetrySpanDto;
 import eu.wohlben.qits.telemetry.dto.TelemetryStoreStateDto;
+import eu.wohlben.qits.telemetry.dto.TelemetryStreamFrame;
 import eu.wohlben.qits.telemetry.dto.TelemetryTraceDto;
 import eu.wohlben.qits.telemetry.dto.TelemetryTraceSummaryDto;
 import eu.wohlben.qits.telemetry.error.BadRequestException;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.List;
+import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 /**
@@ -262,6 +271,101 @@ public class WorkspaceTelemetryController {
     return new ListTelemetryMetricsRequest.Response(
         queryService.metricsIn(
             TelemetryQueryService.sourceKey(source, repoId, workspaceId), name, service));
+  }
+
+  /**
+   * The body of a records search. {@code subscribe} is the live subscribe frame's groups, verbatim;
+   * {@code since} / {@code until} are ISO-8601 instants; {@code source} is a key from {@link
+   * #sources()}, or absent for every source.
+   */
+  @Schema(name = "SearchTelemetryRecordsRequest")
+  public static record SearchTelemetryRecordsRequest(
+      @Schema(
+              type = SchemaType.ARRAY,
+              implementation = Object.class,
+              description =
+                  "The groups of a live subscribe frame, exactly as README \"The live stream\""
+                      + " defines them: [{\"conditions\": [{\"field\", \"op\", \"value\","
+                      + " \"key\"?}]}]. Groups OR, conditions AND; [] matches nothing.",
+              required = true)
+          JsonNode subscribe,
+      @Schema(
+              description = "Inclusive lower bound, an ISO-8601 instant. Absent: no lower bound.",
+              format = "date-time")
+          String since,
+      @Schema(
+              description = "Inclusive upper bound, an ISO-8601 instant. Absent: now.",
+              format = "date-time")
+          String until,
+      @Schema(description = "At most this many records, 1..1000. Absent: 200.") Integer limit,
+      @Schema(description = "A key from /telemetry/sources. Absent: every source.")
+          String source) {
+
+    @Schema(name = "SearchTelemetryRecordsResponse")
+    public record Response(
+        List<TelemetryStreamFrame> records, boolean truncated, Instant bufferedSince) {}
+  }
+
+  /**
+   * The live stream asked about the past: every buffered log, span and metric point the {@code
+   * subscribe} groups match with its own timestamp (log time, span start, metric point time) inside
+   * {@code [since, until]}, both ends inclusive, as the live stream's frames. A POST because the
+   * body is the filter; it changes nothing.
+   *
+   * <p>The filter is read by the code that reads the socket's subscribe frame and matched by the
+   * method the live feed calls, so a filter means one thing live and searched. An unreadable one is
+   * a 400 naming what is wrong, worded as the socket's {@code {"error": …}}.
+   *
+   * <p>A metric is found only by its <em>latest</em> point: the buffer replaces each series' point
+   * in place, so a series that reported in the window and again after it is not in the answer.
+   *
+   * <p>When more than {@code limit} match, the newest {@code limit} are kept and returned oldest
+   * first, with {@code truncated} set. {@code bufferedSince} is the ingest stamp of the oldest record
+   * the searched sources still hold (null when they hold nothing): before it the buffer has
+   * forgotten, so an empty answer there proves nothing.
+   *
+   * <p>Defaults: no {@code since} searches everything still buffered, no {@code until} is now, no
+   * {@code limit} is {@value #DEFAULT_LIMIT}. A limit outside 1..{@value #MAX_LIMIT}, an instant
+   * that does not parse, or {@code since} after {@code until} is a 400.
+   */
+  @POST
+  @Path("/records/search")
+  @Consumes(MediaType.APPLICATION_JSON)
+  public SearchTelemetryRecordsRequest.Response searchRecords(
+      SearchTelemetryRecordsRequest request) {
+    if (request == null) {
+      throw new BadRequestException("a body is required: {\"subscribe\": [...]}");
+    }
+    TelemetryFilter filter;
+    try {
+      filter = TelemetryFilter.parseGroups(request.subscribe());
+    } catch (IllegalArgumentException unreadable) {
+      throw new BadRequestException("unreadable filter: " + unreadable.getMessage());
+    }
+    Instant since = instant("since", request.since());
+    Instant until = instant("until", request.until());
+    if (until == null) {
+      until = Instant.now();
+    }
+    if (since != null && since.isAfter(until)) {
+      throw new BadRequestException("since must not be after until");
+    }
+    int limit = checkedLimit(request.limit() == null ? DEFAULT_LIMIT : request.limit());
+    TelemetryRecordSearch.Result result =
+        queryService.searchRecords(filter, request.source(), since, until, limit);
+    return new SearchTelemetryRecordsRequest.Response(
+        result.records(), result.truncated(), result.bufferedSince());
+  }
+
+  private static Instant instant(String name, String value) {
+    if (value == null || value.isBlank()) {
+      return null;
+    }
+    try {
+      return Instant.parse(value);
+    } catch (DateTimeParseException unreadable) {
+      throw new BadRequestException(name + " must be an ISO-8601 instant, got '" + value + "'");
+    }
   }
 
   private static int checkedLimit(int limit) {

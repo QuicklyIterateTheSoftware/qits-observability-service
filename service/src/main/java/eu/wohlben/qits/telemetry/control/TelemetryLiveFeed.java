@@ -54,15 +54,33 @@ public class TelemetryLiveFeed {
 
   private static final Logger LOG = Logger.getLogger(TelemetryLiveFeed.class);
 
-  /** How one record kind is matched, stamped and turned into its wire DTO. */
-  private record Kind<T>(
+  /**
+   * How one record kind is matched, stamped and turned into its wire frame. Package-private because
+   * {@link TelemetryRecordSearch} answers with the same matcher and the same frame: one record and
+   * one filter give one verdict, live or searched.
+   */
+  record Kind<T>(
       String name,
       BiPredicate<TelemetryFilter, T> matcher,
       ToLongFunction<T> receivedAt,
       Function<T, Map<String, String>> resource,
-      Function<T, Object> dto) {}
+      Function<T, Object> dto) {
 
-  private static final Kind<StoredLog> LOGS =
+    boolean matches(TelemetryFilter filter, T record) {
+      return matcher.test(filter, record);
+    }
+
+    /** The live frame for one record, before serialization. */
+    TelemetryStreamFrame frame(T record) {
+      return new TelemetryStreamFrame(
+          name,
+          receivedAt.applyAsLong(record),
+          TelemetryStore.keyFor(resource.apply(record)),
+          dto.apply(record));
+    }
+  }
+
+  static final Kind<StoredLog> LOGS =
       new Kind<>(
           TelemetryFilter.LOG,
           TelemetryFilter::matches,
@@ -70,7 +88,7 @@ public class TelemetryLiveFeed {
           StoredLog::resourceAttributes,
           TelemetryLogDto::of);
 
-  private static final Kind<StoredSpan> SPANS =
+  static final Kind<StoredSpan> SPANS =
       new Kind<>(
           TelemetryFilter.SPAN,
           TelemetryFilter::matches,
@@ -78,7 +96,7 @@ public class TelemetryLiveFeed {
           StoredSpan::resourceAttributes,
           TelemetrySpanDto::of);
 
-  private static final Kind<MetricPoint> METRICS =
+  static final Kind<MetricPoint> METRICS =
       new Kind<>(
           TelemetryFilter.METRIC,
           TelemetryFilter::matches,
@@ -221,7 +239,7 @@ public class TelemetryLiveFeed {
       String frame = null;
       for (LiveConnection connection : connections.values()) {
         try {
-          if (!kind.matcher().test(connection.filter(), record)) {
+          if (!kind.matches(connection.filter(), record)) {
             continue;
           }
           if (frame == null) {
@@ -252,7 +270,7 @@ public class TelemetryLiveFeed {
       }
       long matched = 0;
       for (T record : records) {
-        if (kind.matcher().test(filter, record)) {
+        if (kind.matches(filter, record)) {
           matched++;
         }
       }
@@ -263,12 +281,7 @@ public class TelemetryLiveFeed {
 
   private <T> String frame(Kind<T> kind, T record) {
     try {
-      return objectMapper.writeValueAsString(
-          new TelemetryStreamFrame(
-              kind.name(),
-              kind.receivedAt().applyAsLong(record),
-              TelemetryStore.keyFor(kind.resource().apply(record)),
-              kind.dto().apply(record)));
+      return objectMapper.writeValueAsString(kind.frame(record));
     } catch (JsonProcessingException unserializable) {
       LOG.debugf(unserializable, "Live feed could not serialize a %s", kind.name());
       return null;
