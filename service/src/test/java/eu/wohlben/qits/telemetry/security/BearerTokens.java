@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
 import java.time.Duration;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -26,8 +27,23 @@ final class BearerTokens {
   /** The key id in every token's header. {@link JwksStub} serves the key under it. */
   static final String KEY_ID = "observability-suite-key";
 
-  /** What qits-platform-idp writes into {@code iss}, and what the shipped config expects. */
-  static final String ISSUER = "http://qits-platform-idp:8080/idp";
+  /**
+   * The issuer derived from the domain, as {@link IssuerValidator} derives it: {@code
+   * https://idp.qits.<QITS_DOMAIN>}, {@code localhost} when the variable is unset — as it is here
+   * unless the machine running the suite carries one.
+   */
+  static final String ISSUER =
+      "https://idp.qits."
+          + Optional.ofNullable(System.getenv("QITS_DOMAIN"))
+              .map(String::strip)
+              .filter(d -> !d.isEmpty())
+              .orElse("localhost");
+
+  /** What qits-platform-idp writes into {@code iss} today, accepted until qits-730 wave 3. */
+  static final String LEGACY_ISSUER = "http://qits-platform-idp:8080/idp";
+
+  /** An issuer this service trusts under neither name: another environment's idp address. */
+  static final String FOREIGN_ISSUER = "http://dev-qits-idp:8080/idp";
 
   /** The platform-wide audience a person's CLI token carries. */
   static final String PLATFORM_AUDIENCE = "qits-platform";

@@ -101,7 +101,12 @@ commissioned agent's role; everything behind it only reads):
   qits-platform-idp. The edge removes every `X-Qits-*` header from a request that carries a Bearer
   or Basic credential, so headers cannot carry that person. `quarkus-oidc` checks the token
   (signature, issuer, and an `aud` that holds `qits-platform`, the one audience qits-platform-idp
-  stamps on every token it mints), and its `groups` claim becomes the roles.
+  stamps on every token it mints), and its `groups` claim becomes the roles. The issuer is never
+  configuration: it is derived from `QITS_DOMAIN` (`https://idp.qits.<domain>`, `localhost` when
+  unset) and checked by `security/IssuerValidator`, a jose4j `Validator` bean the extension applies
+  to every token — there is no `quarkus.oidc.token.issuer`, and with discovery off nothing else
+  checks `iss`. Until the idp stamps that issuer (qits-730) the bean also accepts the legacy
+  `http://qits-platform-idp:8080/idp`.
 
 A request with no `Authorization` header never reaches the token check, so header traffic is what it
 was. A request with a token is decided by the token: OIDC's mechanism runs first, so a token that

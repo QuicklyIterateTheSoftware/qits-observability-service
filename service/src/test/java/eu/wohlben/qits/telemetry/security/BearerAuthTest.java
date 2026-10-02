@@ -129,6 +129,45 @@ class BearerAuthTest {
     assertEquals(403, StreamClient.refusal(socket, Map.of("Authorization", reader)));
   }
 
+  // --- the issuer: derived from the domain, the legacy one still accepted (qits-730) ------------
+
+  @Test
+  void aTokenFromTheDomainDerivedIssuerIsAccepted() {
+    given()
+        .header(
+            "Authorization", bearer(BearerTokens.tokenFrom(BearerTokens.ISSUER, "qits:admin")))
+        .when()
+        .get(STORE)
+        .then()
+        .statusCode(200);
+  }
+
+  @Test
+  void aTokenFromTheLegacyIssuerIsStillAccepted() {
+    given()
+        .header(
+            "Authorization",
+            bearer(BearerTokens.tokenFrom(BearerTokens.LEGACY_ISSUER, "qits:admin")))
+        .when()
+        .get(STORE)
+        .then()
+        .statusCode(200);
+  }
+
+  @Test
+  void aTokenFromAForeignIssuerIsUnauthorized() {
+    // Correctly signed with the trusted key; only `iss` is wrong. Nothing in the shipped config
+    // checks the issuer, so this 401 is IssuerValidator's alone.
+    given()
+        .header(
+            "Authorization",
+            bearer(BearerTokens.tokenFrom(BearerTokens.FOREIGN_ISSUER, "qits:admin")))
+        .when()
+        .get(STORE)
+        .then()
+        .statusCode(401);
+  }
+
   @Test
   void aTokenAddressedOutsideThisPlatformIsUnauthorized() {
     // Not a peer service: a peer's token carries `qits-platform` too and gets in. What the audience
