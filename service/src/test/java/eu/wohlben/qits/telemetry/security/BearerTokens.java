@@ -39,7 +39,7 @@ final class BearerTokens {
               .filter(d -> !d.isEmpty())
               .orElse("localhost");
 
-  /** What qits-platform-idp writes into {@code iss} today, accepted until qits-730 wave 3. */
+  /** What qits-platform-idp used to write into {@code iss}; refused since qits-730 wave 3. */
   static final String LEGACY_ISSUER = "http://qits-platform-idp:8080/idp";
 
   /** An issuer this service trusts under neither name: another environment's idp address. */

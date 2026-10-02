@@ -24,18 +24,12 @@ import org.jose4j.jwt.consumer.Validator;
 @ApplicationScoped
 public class IssuerValidator implements Validator {
 
-  /**
-   * What qits-platform-idp stamps today. Goes once the idp stamps the derived issuer (qits-730 wave
-   * 3).
-   */
-  static final String LEGACY_ISSUER = "http://qits-platform-idp:8080/idp";
-
   private final Set<String> accepted;
 
   IssuerValidator(@ConfigProperty(name = "QITS_DOMAIN") Optional<String> domain) {
     String derived =
         "https://idp.qits." + domain.map(String::strip).filter(d -> !d.isEmpty()).orElse("localhost");
-    this.accepted = Set.of(derived, LEGACY_ISSUER);
+    this.accepted = Set.of(derived);
   }
 
   @Override

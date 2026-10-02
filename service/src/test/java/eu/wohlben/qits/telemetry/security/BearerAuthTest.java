@@ -129,7 +129,7 @@ class BearerAuthTest {
     assertEquals(403, StreamClient.refusal(socket, Map.of("Authorization", reader)));
   }
 
-  // --- the issuer: derived from the domain, the legacy one still accepted (qits-730) ------------
+  // --- the issuer: derived from the domain, and only the derived one is accepted (qits-730) -----
 
   @Test
   void aTokenFromTheDomainDerivedIssuerIsAccepted() {
@@ -143,7 +143,7 @@ class BearerAuthTest {
   }
 
   @Test
-  void aTokenFromTheLegacyIssuerIsStillAccepted() {
+  void aTokenFromTheLegacyIssuerIsNowRefused() {
     given()
         .header(
             "Authorization",
@@ -151,7 +151,7 @@ class BearerAuthTest {
         .when()
         .get(STORE)
         .then()
-        .statusCode(200);
+        .statusCode(401);
   }
 
   @Test
