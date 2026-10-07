@@ -440,6 +440,7 @@ paths:
       security:
       - SecurityScheme:
         - qits:admin
+        - qits:admin-agent
         - qits:agent
   /observability/api/telemetry/logs:
     get:
@@ -496,6 +497,7 @@ paths:
       security:
       - SecurityScheme:
         - qits:admin
+        - qits:admin-agent
         - qits:agent
   /observability/api/telemetry/metrics:
     get:
@@ -537,6 +539,7 @@ paths:
       security:
       - SecurityScheme:
         - qits:admin
+        - qits:admin-agent
         - qits:agent
   /observability/api/telemetry/records/search:
     post:
@@ -565,6 +568,7 @@ paths:
       security:
       - SecurityScheme:
         - qits:admin
+        - qits:admin-agent
         - qits:agent
   /observability/api/telemetry/slow-spans:
     get:
@@ -624,6 +628,7 @@ paths:
       security:
       - SecurityScheme:
         - qits:admin
+        - qits:admin-agent
         - qits:agent
   /observability/api/telemetry/sources:
     get:
@@ -644,6 +649,7 @@ paths:
       security:
       - SecurityScheme:
         - qits:admin
+        - qits:admin-agent
         - qits:agent
   /observability/api/telemetry/store:
     get:
@@ -664,6 +670,7 @@ paths:
       security:
       - SecurityScheme:
         - qits:admin
+        - qits:admin-agent
         - qits:agent
   /observability/api/telemetry/traces:
     get:
@@ -723,6 +730,7 @@ paths:
       security:
       - SecurityScheme:
         - qits:admin
+        - qits:admin-agent
         - qits:agent
   /observability/api/telemetry/traces/{traceId}:
     get:
@@ -761,6 +769,7 @@ paths:
       security:
       - SecurityScheme:
         - qits:admin
+        - qits:admin-agent
         - qits:agent
 info:
   title: qits-observability API

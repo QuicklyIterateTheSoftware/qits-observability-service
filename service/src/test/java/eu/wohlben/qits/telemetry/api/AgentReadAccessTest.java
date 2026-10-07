@@ -22,6 +22,10 @@ class AgentReadAccessTest {
   private static final Map<String, String> AGENT =
       Map.of("X-Qits-User", "dyn-workspace-agent", "X-Qits-Roles", "qits:agent");
 
+  /** An admin workspace's agent (qits-628 follow-up): admitted wherever {@code qits:admin} is. */
+  private static final Map<String, String> ADMIN_AGENT =
+      Map.of("X-Qits-User", "dyn-admin-workspace-agent", "X-Qits-Roles", "qits:admin-agent");
+
   private static final Map<String, String> READER =
       Map.of("X-Qits-User", "dyn-workspace-agent", "X-Qits-Roles", "qits:reader");
 
@@ -47,6 +51,31 @@ class AgentReadAccessTest {
   @Test
   void anAgentOpensTheLiveStream() {
     assertEquals(101, StreamClient.refusal(endpoint, AGENT));
+  }
+
+  /**
+   * {@code qits:admin-agent} alone — without {@code qits:admin} and without {@code qits:agent} —
+   * is admitted wherever {@code qits:admin} is (qits-628 follow-up).
+   */
+  @Test
+  void anAdminAgentReadsTheTelemetryApi() {
+    for (String path :
+        new String[] {
+          "/observability/api/telemetry/store",
+          "/observability/api/telemetry/sources",
+          "/observability/api/telemetry/errors",
+          "/observability/api/telemetry/traces",
+          "/observability/api/telemetry/slow-spans",
+          "/observability/api/telemetry/logs",
+          "/observability/api/telemetry/metrics"
+        }) {
+      given().headers(ADMIN_AGENT).get(path).then().statusCode(200);
+    }
+  }
+
+  @Test
+  void anAdminAgentOpensTheLiveStream() {
+    assertEquals(101, StreamClient.refusal(endpoint, ADMIN_AGENT));
   }
 
   @Test
