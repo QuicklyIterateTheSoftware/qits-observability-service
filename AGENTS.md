@@ -93,7 +93,8 @@ plain field that a `StartupEvent` observer merely re-stamps.
 
 Two ways in. Both end in one `SecurityIdentity`, and Jakarta `@RolesAllowed({"qits:admin",
 "qits:agent"})` decides for both, on the REST API and on the stream's upgrade (`qits:agent` is a
-commissioned agent's role; everything behind it only reads):
+commissioned agent's role; everything behind it only reads). `qits:admin-agent` — an admin
+workspace's agent (qits-628 follow-up) — is admitted everywhere `qits:admin` is:
 
 - **Forward-auth headers** — `X-Qits-User` / `X-Qits-Roles`, read by qits-auth-core's
   `ForwardAuthMechanism`. A browser session gets them from the edge.

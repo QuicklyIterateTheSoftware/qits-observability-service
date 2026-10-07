@@ -30,7 +30,7 @@ import jakarta.inject.Inject;
  * agent's {@code qits:agent} opens it too: the stream only reads.
  */
 @WebSocket(path = "/observability/stream")
-@RolesAllowed({"qits:admin", "qits:agent"})
+@RolesAllowed({"qits:admin", "qits:admin-agent", "qits:agent"})
 public class TelemetryStreamSocket {
 
   @Inject TelemetryLiveFeed feed;
