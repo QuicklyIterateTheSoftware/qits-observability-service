@@ -8,4 +8,8 @@ artifacts:
 contracts:
   application: qits-observability
   golden-masters: { from: golden-masters/, packages: [maven, npm] }
+  # The consumer pacts this service writes (ticket qits-1149): IdpConsumerPactTest writes
+  # pacts/qits-observability-service_qits-idp-service.json.
+  pacts:
+    qits-idp-service: { packages: [maven] }
 userflows: qits-observability

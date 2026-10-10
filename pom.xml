@@ -69,6 +69,12 @@
              Released out of libs/qits-userflows into the platform's own Maven repository, which is
              the same place qits-auth-core above comes from. -->
         <qits.userflows.version>2026.1002.72731</qits.userflows.version>
+        <!-- The consumer half of the contracts (ticket qits-1149): qits-pact-consumer reads the idp's
+             golden masters and writes pacts/qits-observability-service_qits-idp-service.json.
+             Exact pins: a newer recording is a deliberate bump. -->
+        <qits.pact-consumer.version>2026.1010.140259</qits.pact-consumer.version>
+        <qits.idp-golden-masters.version>2026.1010.134259</qits.idp-golden-masters.version>
+        <pact.version>4.6.21</pact.version>
         <qits.maven.repository.url>https://registry.qits.wohlben.eu/artifacts/maven/maven</qits.maven.repository.url>
 
         <!-- Not in the platform BOM, so both are pinned here: mcp-server 2.0.0.CR2 provides the
@@ -150,6 +156,24 @@
                 <groupId>io.quarkiverse.quinoa</groupId>
                 <artifactId>quarkus-quinoa</artifactId>
                 <version>${quinoa.version}</version>
+            </dependency>
+            <dependency>
+                <!-- Test scope at every declaration site. The version every provider verifies with. -->
+                <groupId>au.com.dius.pact.consumer</groupId>
+                <artifactId>junit5</artifactId>
+                <version>${pact.version}</version>
+            </dependency>
+            <dependency>
+                <!-- Test scope at every declaration site. -->
+                <groupId>${project.groupId}</groupId>
+                <artifactId>qits-pact-consumer</artifactId>
+                <version>${qits.pact-consumer.version}</version>
+            </dependency>
+            <dependency>
+                <!-- Test scope at every declaration site. -->
+                <groupId>${project.groupId}</groupId>
+                <artifactId>qits-idp-golden-masters</artifactId>
+                <version>${qits.idp-golden-masters.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
