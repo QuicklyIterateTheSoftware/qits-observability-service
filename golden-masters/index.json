@@ -1,0 +1,192 @@
+{
+  "formatVersion": 1,
+  "provider": "qits-observability",
+  "states": [
+    {
+      "name": "an empty telemetry buffer",
+      "slug": "an-empty-telemetry-buffer",
+      "params": {},
+      "dependsOn": [],
+      "operations": [
+        {
+          "operationId": "getTelemetryStore",
+          "method": "GET",
+          "path": "/observability/api/telemetry/store",
+          "status": 200,
+          "file": "an-empty-telemetry-buffer/getTelemetryStore.json",
+          "frozen": {
+            "ids": [],
+            "instants": [
+              "$.startedAt"
+            ],
+            "strings": [],
+            "listFilteredTo": null
+          }
+        },
+        {
+          "operationId": "listTelemetrySources",
+          "method": "GET",
+          "path": "/observability/api/telemetry/sources",
+          "status": 200,
+          "file": "an-empty-telemetry-buffer/listTelemetrySources.json",
+          "frozen": {
+            "ids": [],
+            "instants": [],
+            "strings": [],
+            "listFilteredTo": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "telemetry from one platform service",
+      "slug": "telemetry-from-one-platform-service",
+      "params": {
+        "service": "qits-example",
+        "source": "_service/qits-example",
+        "traceId": "6a1f0c2b9d8e47f3a5b4c3d2e1f00a01"
+      },
+      "dependsOn": [],
+      "operations": [
+        {
+          "operationId": "getTelemetryStore",
+          "method": "GET",
+          "path": "/observability/api/telemetry/store",
+          "status": 200,
+          "file": "telemetry-from-one-platform-service/getTelemetryStore.json",
+          "frozen": {
+            "ids": [],
+            "instants": [
+              "$.startedAt"
+            ],
+            "strings": [],
+            "listFilteredTo": null
+          }
+        },
+        {
+          "operationId": "getTelemetryTrace",
+          "method": "GET",
+          "path": "/observability/api/telemetry/traces/{traceId}?source={source}",
+          "status": 200,
+          "file": "telemetry-from-one-platform-service/getTelemetryTrace.json",
+          "frozen": {
+            "ids": [],
+            "instants": [],
+            "strings": [],
+            "listFilteredTo": null
+          }
+        },
+        {
+          "operationId": "listSlowSpans",
+          "method": "GET",
+          "path": "/observability/api/telemetry/slow-spans?source={source}",
+          "status": 200,
+          "file": "telemetry-from-one-platform-service/listSlowSpans.json",
+          "frozen": {
+            "ids": [],
+            "instants": [],
+            "strings": [],
+            "listFilteredTo": null
+          }
+        },
+        {
+          "operationId": "listTelemetryErrors",
+          "method": "GET",
+          "path": "/observability/api/telemetry/errors?source={source}",
+          "status": 200,
+          "file": "telemetry-from-one-platform-service/listTelemetryErrors.json",
+          "frozen": {
+            "ids": [],
+            "instants": [],
+            "strings": [],
+            "listFilteredTo": null
+          }
+        },
+        {
+          "operationId": "listTelemetryMetrics",
+          "method": "GET",
+          "path": "/observability/api/telemetry/metrics?source={source}",
+          "status": 200,
+          "file": "telemetry-from-one-platform-service/listTelemetryMetrics.json",
+          "frozen": {
+            "ids": [],
+            "instants": [],
+            "strings": [],
+            "listFilteredTo": null
+          }
+        },
+        {
+          "operationId": "listTelemetrySources",
+          "method": "GET",
+          "path": "/observability/api/telemetry/sources",
+          "status": 200,
+          "file": "telemetry-from-one-platform-service/listTelemetrySources.json",
+          "frozen": {
+            "ids": [],
+            "instants": [
+              "$.sources[*].oldestReceivedAt",
+              "$.sources[*].newestReceivedAt"
+            ],
+            "strings": [],
+            "listFilteredTo": null
+          }
+        },
+        {
+          "operationId": "listTelemetryTraces",
+          "method": "GET",
+          "path": "/observability/api/telemetry/traces?source={source}",
+          "status": 200,
+          "file": "telemetry-from-one-platform-service/listTelemetryTraces.json",
+          "frozen": {
+            "ids": [],
+            "instants": [],
+            "strings": [],
+            "listFilteredTo": null
+          }
+        },
+        {
+          "operationId": "searchTelemetryLogs",
+          "method": "GET",
+          "path": "/observability/api/telemetry/logs?source={source}",
+          "status": 200,
+          "file": "telemetry-from-one-platform-service/searchTelemetryLogs.json",
+          "frozen": {
+            "ids": [],
+            "instants": [],
+            "strings": [],
+            "listFilteredTo": null
+          }
+        },
+        {
+          "operationId": "searchTelemetryRecords",
+          "method": "POST",
+          "path": "/observability/api/telemetry/records/search",
+          "body": {
+            "subscribe": [
+              {
+                "conditions": [
+                  {
+                    "field": "service",
+                    "op": "exact",
+                    "value": "{service}"
+                  }
+                ]
+              }
+            ],
+            "source": "{source}"
+          },
+          "status": 200,
+          "file": "telemetry-from-one-platform-service/searchTelemetryRecords.json",
+          "frozen": {
+            "ids": [],
+            "instants": [
+              "$.bufferedSince"
+            ],
+            "strings": [],
+            "listFilteredTo": null
+          }
+        }
+      ]
+    }
+  ]
+}

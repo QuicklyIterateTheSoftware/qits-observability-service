@@ -1,0 +1,36 @@
+{
+  "traces": [
+    {
+      "traceId": "6a1f0c2b9d8e47f3a5b4c3d2e1f00a02",
+      "rootName": "GET /health",
+      "rootService": "qits-example",
+      "rootRoute": "/health",
+      "services": [
+        "qits-example"
+      ],
+      "startEpochNanos": 1767225601000000000,
+      "durationMs": 5,
+      "spanCount": 1,
+      "errorSpanCount": 0,
+      "hasException": false,
+      "rootMissing": false
+    },
+    {
+      "traceId": "6a1f0c2b9d8e47f3a5b4c3d2e1f00a01",
+      "rootName": "GET /invoices",
+      "rootService": "qits-example",
+      "rootRoute": "/invoices",
+      "services": [
+        "qits-example"
+      ],
+      "startEpochNanos": 1767225600000000000,
+      "durationMs": 750,
+      "spanCount": 2,
+      "errorSpanCount": 1,
+      "hasException": true,
+      "rootMissing": false
+    }
+  ],
+  "total": 2,
+  "truncated": false
+}

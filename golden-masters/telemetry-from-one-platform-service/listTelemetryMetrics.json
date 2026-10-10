@@ -1,0 +1,36 @@
+{
+  "metrics": [
+    {
+      "name": "http.server.requests",
+      "description": "",
+      "unit": "",
+      "type": "COUNTER",
+      "value": 3.0,
+      "epochNanos": 1767225601000000000,
+      "serviceName": "qits-example",
+      "attributes": {},
+      "resourceAttributes": {
+        "service.name": "qits-example",
+        "service.version": "2026.1231.120000",
+        "deployment.environment.name": "dev"
+      }
+    },
+    {
+      "name": "jvm.memory.used",
+      "description": "",
+      "unit": "By",
+      "type": "GAUGE",
+      "value": 1.5E8,
+      "epochNanos": 1767225601000000000,
+      "serviceName": "qits-example",
+      "attributes": {
+        "pool": "heap"
+      },
+      "resourceAttributes": {
+        "service.name": "qits-example",
+        "service.version": "2026.1231.120000",
+        "deployment.environment.name": "dev"
+      }
+    }
+  ]
+}

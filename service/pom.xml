@@ -136,6 +136,15 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <!-- contracts/ConsumerPactVerificationTest: verifies the consumer pacts this provider
+                 pins. pact-jvm's JUnit 5 provider, at the version every provider on the estate
+                 verifies with, so a consumer's pact is read the same way. -->
+            <groupId>au.com.dius.pact.provider</groupId>
+            <artifactId>junit5</artifactId>
+            <version>4.6.21</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <!-- The user-story framework: the story catalogue under src/test/java/…/telemetry/stories
                  (plus TelemetryBootstrapIT, which owns the boot) is written as @UserStory methods,
                  so the packaged round-trip proof doubles as documentation — steps, notes and an

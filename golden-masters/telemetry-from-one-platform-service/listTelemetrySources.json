@@ -1,0 +1,25 @@
+{
+  "sources": [
+    {
+      "key": "_service/qits-example",
+      "kind": "SERVICE",
+      "label": "qits-example",
+      "repositoryId": null,
+      "workspaceId": null,
+      "services": [
+        {
+          "name": "qits-example",
+          "spans": 3,
+          "logs": 2,
+          "metricSeries": 2
+        }
+      ],
+      "spans": 3,
+      "logs": 2,
+      "metricSeries": 2,
+      "bytes": 4892,
+      "oldestReceivedAt": "2026-01-01T00:00:00Z",
+      "newestReceivedAt": "2026-01-01T00:00:00Z"
+    }
+  ]
+}

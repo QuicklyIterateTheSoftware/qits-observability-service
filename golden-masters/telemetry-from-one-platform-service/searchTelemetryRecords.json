@@ -1,0 +1,181 @@
+{
+  "records": [
+    {
+      "kind": "span",
+      "receivedAtMillis": 1767225602000,
+      "source": "_service/qits-example",
+      "record": {
+        "traceId": "6a1f0c2b9d8e47f3a5b4c3d2e1f00a01",
+        "spanId": "7b2e1d3c4f5a6b01",
+        "parentSpanId": "",
+        "serviceName": "qits-example",
+        "scopeName": "test-instrumentation",
+        "name": "GET /invoices",
+        "kind": "SERVER",
+        "startEpochNanos": 1767225600000000000,
+        "durationMs": 750,
+        "status": "ERROR",
+        "statusMessage": "invoice store unreachable",
+        "attributes": {
+          "http.route": "/invoices"
+        },
+        "events": [
+          {
+            "name": "exception",
+            "epochNanos": 1767225600700000000,
+            "attributes": {
+              "exception.type": "java.lang.IllegalStateException",
+              "exception.message": "invoice store unreachable",
+              "exception.stacktrace": "java.lang.IllegalStateException: invoice store unreachable\n\tat eu.example.InvoiceResource.list(InvoiceResource.java:42)\n"
+            },
+            "exception": true
+          }
+        ],
+        "resourceAttributes": {
+          "service.name": "qits-example",
+          "service.version": "2026.1231.120000",
+          "deployment.environment.name": "dev"
+        }
+      }
+    },
+    {
+      "kind": "log",
+      "receivedAtMillis": 1767225602000,
+      "source": "_service/qits-example",
+      "record": {
+        "epochNanos": 1767225600010000000,
+        "severityNumber": 9,
+        "severityText": "INFO",
+        "body": "listing invoices",
+        "traceId": "6a1f0c2b9d8e47f3a5b4c3d2e1f00a01",
+        "spanId": "7b2e1d3c4f5a6b01",
+        "serviceName": "qits-example",
+        "attributes": {},
+        "resourceAttributes": {
+          "service.name": "qits-example",
+          "service.version": "2026.1231.120000",
+          "deployment.environment.name": "dev"
+        }
+      }
+    },
+    {
+      "kind": "span",
+      "receivedAtMillis": 1767225602000,
+      "source": "_service/qits-example",
+      "record": {
+        "traceId": "6a1f0c2b9d8e47f3a5b4c3d2e1f00a01",
+        "spanId": "7b2e1d3c4f5a6b02",
+        "parentSpanId": "7b2e1d3c4f5a6b01",
+        "serviceName": "qits-example",
+        "scopeName": "test-instrumentation",
+        "name": "SELECT invoices",
+        "kind": "CLIENT",
+        "startEpochNanos": 1767225600050000000,
+        "durationMs": 600,
+        "status": "UNSET",
+        "statusMessage": "",
+        "attributes": {},
+        "events": [],
+        "resourceAttributes": {
+          "service.name": "qits-example",
+          "service.version": "2026.1231.120000",
+          "deployment.environment.name": "dev"
+        }
+      }
+    },
+    {
+      "kind": "log",
+      "receivedAtMillis": 1767225602000,
+      "source": "_service/qits-example",
+      "record": {
+        "epochNanos": 1767225600700000000,
+        "severityNumber": 17,
+        "severityText": "ERROR",
+        "body": "invoice store unreachable",
+        "traceId": "6a1f0c2b9d8e47f3a5b4c3d2e1f00a01",
+        "spanId": "7b2e1d3c4f5a6b01",
+        "serviceName": "qits-example",
+        "attributes": {
+          "exception.type": "java.lang.IllegalStateException",
+          "exception.message": "invoice store unreachable"
+        },
+        "resourceAttributes": {
+          "service.name": "qits-example",
+          "service.version": "2026.1231.120000",
+          "deployment.environment.name": "dev"
+        }
+      }
+    },
+    {
+      "kind": "span",
+      "receivedAtMillis": 1767225602000,
+      "source": "_service/qits-example",
+      "record": {
+        "traceId": "6a1f0c2b9d8e47f3a5b4c3d2e1f00a02",
+        "spanId": "7b2e1d3c4f5a6b03",
+        "parentSpanId": "",
+        "serviceName": "qits-example",
+        "scopeName": "test-instrumentation",
+        "name": "GET /health",
+        "kind": "SERVER",
+        "startEpochNanos": 1767225601000000000,
+        "durationMs": 5,
+        "status": "UNSET",
+        "statusMessage": "",
+        "attributes": {
+          "http.route": "/health"
+        },
+        "events": [],
+        "resourceAttributes": {
+          "service.name": "qits-example",
+          "service.version": "2026.1231.120000",
+          "deployment.environment.name": "dev"
+        }
+      }
+    },
+    {
+      "kind": "metric",
+      "receivedAtMillis": 1767225602000,
+      "source": "_service/qits-example",
+      "record": {
+        "name": "jvm.memory.used",
+        "description": "",
+        "unit": "By",
+        "type": "GAUGE",
+        "value": 1.5E8,
+        "epochNanos": 1767225601000000000,
+        "serviceName": "qits-example",
+        "attributes": {
+          "pool": "heap"
+        },
+        "resourceAttributes": {
+          "service.name": "qits-example",
+          "service.version": "2026.1231.120000",
+          "deployment.environment.name": "dev"
+        }
+      }
+    },
+    {
+      "kind": "metric",
+      "receivedAtMillis": 1767225602000,
+      "source": "_service/qits-example",
+      "record": {
+        "name": "http.server.requests",
+        "description": "",
+        "unit": "",
+        "type": "COUNTER",
+        "value": 3.0,
+        "epochNanos": 1767225601000000000,
+        "serviceName": "qits-example",
+        "attributes": {},
+        "resourceAttributes": {
+          "service.name": "qits-example",
+          "service.version": "2026.1231.120000",
+          "deployment.environment.name": "dev"
+        }
+      }
+    }
+  ],
+  "truncated": false,
+  "bufferedSince": "2026-01-01T00:00:00Z"
+}

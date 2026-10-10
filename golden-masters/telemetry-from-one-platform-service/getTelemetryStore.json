@@ -1,0 +1,15 @@
+{
+  "startedAt": "2026-01-01T00:00:00Z",
+  "totalBytes": 4892,
+  "maxTotalBytes": 268435456,
+  "maxBytesPerSource": 15728640,
+  "caps": {
+    "spansPerSource": 2000,
+    "logsPerSource": 10000,
+    "metricSeriesPerSource": 500
+  },
+  "sourceCount": 1,
+  "evictedSpans": 0,
+  "evictedLogs": 0,
+  "droppedMetricSeries": 0
+}
