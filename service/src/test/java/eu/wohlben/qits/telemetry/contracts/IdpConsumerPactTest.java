@@ -5,9 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import eu.wohlben.qits.pact.consumer.ConsumerPact;
 import eu.wohlben.qits.pact.consumer.GoldenInteraction;
 import eu.wohlben.qits.pact.consumer.GoldenMasters;
@@ -33,8 +30,7 @@ import org.junit.jupiter.api.Test;
  * {@link OidcConfigurationMetadata}, the keys as a jose4j {@link JsonWebKeySet}.
  *
  * <p>{@code issuer} is bound EXACTLY, not by type: quarkus-oidc refuses every token whose {@code
- * iss} differs from it by one character. qits-pact-consumer matches every leaf by type, so the
- * committed file drops that one rule (see {@link #theCommittedPactIsWhatTheRowsWrite}).
+ * iss} differs from it by one character.
  */
 class IdpConsumerPactTest {
 
@@ -48,18 +44,14 @@ class IdpConsumerPactTest {
 
   static final GoldenInteraction DISCOVERY =
       GoldenInteraction.of(FIRST_BEARER, STATE, "getOpenIdConfiguration")
-          .consumes("issuer", "jwks_uri", "token_endpoint");
+          .consumes("issuer", "jwks_uri", "token_endpoint")
+          .exact("issuer");
 
   static final GoldenInteraction JWKS =
       GoldenInteraction.of(FIRST_BEARER, STATE, "getJwks")
           .consumes("keys[].kid", "keys[].kty", "keys[].n", "keys[].e", "keys[].alg", "keys[].use");
 
   static final ConsumerPact PACT = ConsumerPact.of(CONSUMER, IDP, DISCOVERY, JWKS);
-
-  /** The pact path quarkus-oidc compares exactly. */
-  static final String EXACT_ISSUER = "$.issuer";
-
-  private static final ObjectMapper MAPPER = new ObjectMapper();
 
   private static final HttpClient HTTP = HttpClient.newHttpClient();
 
@@ -101,26 +93,10 @@ class IdpConsumerPactTest {
     PACT.assertEveryInteractionCarriesBothReferences();
   }
 
-  /**
-   * {@code pacts/qits-observability-service_qits-idp-service.json}: the rows' pact with the type
-   * rule on {@code issuer} removed, so the verifier compares it by value.
-   */
+  /** {@code pacts/qits-observability-service_qits-idp-service.json} is what the rows write. */
   @Test
-  void theCommittedPactIsWhatTheRowsWrite() throws Exception {
-    JsonNode pact = PACT.normalisedPact();
-    int exact = 0;
-    for (JsonNode interaction : pact.path("interactions")) {
-      if (interaction.path("description").asText().equals(DISCOVERY.description())
-          && interaction.path("response").path("matchingRules").path("body")
-              instanceof ObjectNode body
-          && body.remove(EXACT_ISSUER) != null) {
-        exact++;
-      }
-    }
-    assertEquals(1, exact, "the discovery row binds " + EXACT_ISSUER + " by value");
-    eu.wohlben.qits.pact.consumer.GoldenFiles.compareOrWrite(
-        ConsumerPact.pactsDirectory().resolve(PACT.file()),
-        ConsumerPact.normalise(MAPPER.writeValueAsString(pact)));
+  void theCommittedPactIsWhatTheRowsWrite() {
+    PACT.compareOrWritePactFile();
   }
 
   private static String get(String url) throws Exception {
