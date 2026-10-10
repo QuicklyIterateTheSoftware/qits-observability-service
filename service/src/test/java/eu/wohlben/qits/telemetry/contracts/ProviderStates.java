@@ -45,10 +45,11 @@ import java.util.function.Supplier;
  *
  * <p><b>A state empties the buffer first</b>, so it assumes nothing about what ran before it.
  *
- * <p><b>Every time is fixed.</b> Record times and the ingest stamp are on {@link #T0}, so an answer
- * is the same on every run. The one live value is the buffer's {@code startedAt}, which the
- * recording freezes. A consumer that filters by a window relative to the wall clock ({@code
- * sinceMinutes}) finds nothing in these states; it needs a state of its own.
+ * <p><b>Every time is fixed.</b> Record times and the ingest stamp are on {@link #T0}, and every
+ * state fixes the query API's "now" at {@link #NOW}, five minutes later ({@link ContractClock}). So
+ * a {@code sinceMinutes} window of five minutes or more, or a records search without {@code until},
+ * finds the state's records. The one live value is the buffer's {@code startedAt}, which the
+ * recording freezes.
  */
 @ApplicationScoped
 public class ProviderStates {
@@ -56,8 +57,17 @@ public class ProviderStates {
   public static final String TELEMETRY_FROM_ONE_SERVICE = "telemetry from one platform service";
   public static final String AN_EMPTY_TELEMETRY_BUFFER = "an empty telemetry buffer";
 
+  /** The records search's state (qits-platform-access-cli, {@code qits observe query}). */
+  public static final String TELEMETRY_RECORDS_OF_EVERY_KIND = "telemetry records of every kind";
+
   /** 2026-01-01T00:00:00Z: the time every record in a state is dated from. */
   static final Instant T0 = Instant.parse("2026-01-01T00:00:00Z");
+
+  /** 2026-01-01T00:05:00Z: "now" in every state. */
+  static final Instant NOW = T0.plusSeconds(300);
+
+  /** A one-hour window ending at {@link #NOW}: what {@code qits observe query --since 1h} sends. */
+  static final Instant WINDOW_SINCE = NOW.minusSeconds(3600);
 
   static final String SERVICE = "qits-example";
   static final String SOURCE = TelemetryStore.SERVICE_KEY_PREFIX + SERVICE;
@@ -78,12 +88,14 @@ public class ProviderStates {
 
   @Inject TelemetryStore store;
   @Inject TelemetryDecoder decoder;
+  @Inject ContractClock clock;
 
   private final Map<String, Supplier<Setup>> states = new LinkedHashMap<>();
 
   public ProviderStates() {
     states.put(TELEMETRY_FROM_ONE_SERVICE, this::telemetryFromOneService);
     states.put(AN_EMPTY_TELEMETRY_BUFFER, this::anEmptyTelemetryBuffer);
+    states.put(TELEMETRY_RECORDS_OF_EVERY_KIND, this::telemetryRecordsOfEveryKind);
   }
 
   /** Every state name this provider answers for. */
@@ -116,6 +128,7 @@ public class ProviderStates {
   /** Nothing buffered. */
   private Setup anEmptyTelemetryBuffer() {
     store.clear();
+    clock.fixAt(NOW);
     return new Setup(Map.of());
   }
 
@@ -136,6 +149,7 @@ public class ProviderStates {
    */
   private Setup telemetryFromOneService() {
     store.clear();
+    clock.fixAt(NOW);
     long received = T0.toEpochMilli() + 2_000L;
     long t0 = T0.toEpochMilli() * 1_000_000L;
     Resource resource =
@@ -246,6 +260,20 @@ public class ProviderStates {
     params.put("source", SOURCE);
     params.put("service", SERVICE);
     params.put("traceId", FAILED_TRACE_ID);
+    return new Setup(Collections.unmodifiableMap(params));
+  }
+
+  /**
+   * The buffer of {@link #TELEMETRY_FROM_ONE_SERVICE} — logs, spans and metric points — seen by a
+   * records search over a time window. Params add {@code now} (the fixed "now") and {@code since}
+   * / {@code until}, the one-hour window ending there that {@code qits observe query --since 1h}
+   * sends; every record lies inside it.
+   */
+  private Setup telemetryRecordsOfEveryKind() {
+    Map<String, String> params = new TreeMap<>(telemetryFromOneService().params());
+    params.put("now", NOW.toString());
+    params.put("since", WINDOW_SINCE.toString());
+    params.put("until", NOW.toString());
     return new Setup(Collections.unmodifiableMap(params));
   }
 

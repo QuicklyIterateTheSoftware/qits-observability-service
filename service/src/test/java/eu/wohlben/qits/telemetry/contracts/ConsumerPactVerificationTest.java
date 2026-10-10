@@ -18,6 +18,7 @@ import jakarta.inject.Inject;
 import java.net.URL;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -55,6 +56,13 @@ class ConsumerPactVerificationTest {
   }
 
   @Inject ProviderStates states;
+  @Inject ContractClock clock;
+
+  /** A state fixes the clock; no other test may see it fixed. */
+  @AfterEach
+  void releaseClock() {
+    clock.release();
+  }
 
   @TestHTTPResource("/")
   URL base;
@@ -106,6 +114,11 @@ class ConsumerPactVerificationTest {
   @State(ProviderStates.TELEMETRY_FROM_ONE_SERVICE)
   Map<String, String> telemetryFromOneService() {
     return states.params(ProviderStates.TELEMETRY_FROM_ONE_SERVICE);
+  }
+
+  @State(ProviderStates.TELEMETRY_RECORDS_OF_EVERY_KIND)
+  Map<String, String> telemetryRecordsOfEveryKind() {
+    return states.params(ProviderStates.TELEMETRY_RECORDS_OF_EVERY_KIND);
   }
 
   @State(ProviderStates.AN_EMPTY_TELEMETRY_BUFFER)

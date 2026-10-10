@@ -66,7 +66,10 @@
         {
           "operationId": "getTelemetryTrace",
           "method": "GET",
-          "path": "/observability/api/telemetry/traces/{traceId}?source={source}",
+          "path": "/observability/api/telemetry/traces/{traceId}",
+          "query": {
+            "source": "{source}"
+          },
           "status": 200,
           "file": "telemetry-from-one-platform-service/getTelemetryTrace.json",
           "frozen": {
@@ -79,7 +82,10 @@
         {
           "operationId": "listSlowSpans",
           "method": "GET",
-          "path": "/observability/api/telemetry/slow-spans?source={source}",
+          "path": "/observability/api/telemetry/slow-spans",
+          "query": {
+            "source": "{source}"
+          },
           "status": 200,
           "file": "telemetry-from-one-platform-service/listSlowSpans.json",
           "frozen": {
@@ -92,7 +98,10 @@
         {
           "operationId": "listTelemetryErrors",
           "method": "GET",
-          "path": "/observability/api/telemetry/errors?source={source}",
+          "path": "/observability/api/telemetry/errors",
+          "query": {
+            "source": "{source}"
+          },
           "status": 200,
           "file": "telemetry-from-one-platform-service/listTelemetryErrors.json",
           "frozen": {
@@ -105,7 +114,10 @@
         {
           "operationId": "listTelemetryMetrics",
           "method": "GET",
-          "path": "/observability/api/telemetry/metrics?source={source}",
+          "path": "/observability/api/telemetry/metrics",
+          "query": {
+            "source": "{source}"
+          },
           "status": 200,
           "file": "telemetry-from-one-platform-service/listTelemetryMetrics.json",
           "frozen": {
@@ -134,7 +146,10 @@
         {
           "operationId": "listTelemetryTraces",
           "method": "GET",
-          "path": "/observability/api/telemetry/traces?source={source}",
+          "path": "/observability/api/telemetry/traces",
+          "query": {
+            "source": "{source}"
+          },
           "status": 200,
           "file": "telemetry-from-one-platform-service/listTelemetryTraces.json",
           "frozen": {
@@ -147,7 +162,10 @@
         {
           "operationId": "searchTelemetryLogs",
           "method": "GET",
-          "path": "/observability/api/telemetry/logs?source={source}",
+          "path": "/observability/api/telemetry/logs",
+          "query": {
+            "source": "{source}"
+          },
           "status": 200,
           "file": "telemetry-from-one-platform-service/searchTelemetryLogs.json",
           "frozen": {
@@ -177,6 +195,64 @@
           },
           "status": 200,
           "file": "telemetry-from-one-platform-service/searchTelemetryRecords.json",
+          "frozen": {
+            "ids": [],
+            "instants": [
+              "$.bufferedSince"
+            ],
+            "strings": [],
+            "listFilteredTo": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "telemetry records of every kind",
+      "slug": "telemetry-records-of-every-kind",
+      "params": {
+        "now": "2026-01-01T00:05:00Z",
+        "service": "qits-example",
+        "since": "2025-12-31T23:05:00Z",
+        "source": "_service/qits-example",
+        "traceId": "6a1f0c2b9d8e47f3a5b4c3d2e1f00a01",
+        "until": "2026-01-01T00:05:00Z"
+      },
+      "dependsOn": [],
+      "operations": [
+        {
+          "operationId": "searchTelemetryLogs",
+          "method": "GET",
+          "path": "/observability/api/telemetry/logs",
+          "query": {
+            "source": "{source}",
+            "sinceMinutes": "60"
+          },
+          "status": 200,
+          "file": "telemetry-records-of-every-kind/searchTelemetryLogs.json",
+          "frozen": {
+            "ids": [],
+            "instants": [],
+            "strings": [],
+            "listFilteredTo": null
+          }
+        },
+        {
+          "operationId": "searchTelemetryRecords",
+          "method": "POST",
+          "path": "/observability/api/telemetry/records/search",
+          "body": {
+            "subscribe": [
+              {
+                "conditions": []
+              }
+            ],
+            "since": "{since}",
+            "until": "{until}",
+            "limit": 100,
+            "source": "{source}"
+          },
+          "status": 200,
+          "file": "telemetry-records-of-every-kind/searchTelemetryRecords.json",
           "frozen": {
             "ids": [],
             "instants": [

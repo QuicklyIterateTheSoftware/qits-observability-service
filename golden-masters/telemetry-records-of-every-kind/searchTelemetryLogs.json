@@ -1,0 +1,39 @@
+{
+  "logs": [
+    {
+      "epochNanos": 1767225600010000000,
+      "severityNumber": 9,
+      "severityText": "INFO",
+      "body": "listing invoices",
+      "traceId": "6a1f0c2b9d8e47f3a5b4c3d2e1f00a01",
+      "spanId": "7b2e1d3c4f5a6b01",
+      "serviceName": "qits-example",
+      "attributes": {},
+      "resourceAttributes": {
+        "service.name": "qits-example",
+        "service.version": "2026.1231.120000",
+        "deployment.environment.name": "dev"
+      }
+    },
+    {
+      "epochNanos": 1767225600700000000,
+      "severityNumber": 17,
+      "severityText": "ERROR",
+      "body": "invoice store unreachable",
+      "traceId": "6a1f0c2b9d8e47f3a5b4c3d2e1f00a01",
+      "spanId": "7b2e1d3c4f5a6b01",
+      "serviceName": "qits-example",
+      "attributes": {
+        "exception.type": "java.lang.IllegalStateException",
+        "exception.message": "invoice store unreachable"
+      },
+      "resourceAttributes": {
+        "service.name": "qits-example",
+        "service.version": "2026.1231.120000",
+        "deployment.environment.name": "dev"
+      }
+    }
+  ],
+  "total": 2,
+  "truncated": false
+}

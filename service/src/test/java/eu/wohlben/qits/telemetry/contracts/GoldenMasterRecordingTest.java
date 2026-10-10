@@ -12,9 +12,11 @@ import jakarta.inject.Inject;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -27,6 +29,7 @@ import java.util.TreeSet;
 import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -44,9 +47,10 @@ import org.junit.jupiter.api.Test;
  * instant the buffer stamps itself ({@code startedAt}). Every string value shaped like an ISO-8601
  * instant becomes {@value #FROZEN_INSTANT}, and its path goes in the index's {@code frozen.instants}.
  *
- * <p><b>Operation ids.</b> The OpenAPI document names no operation ids, so the names are this
- * table's. They follow the schema names the controller already gives each answer ({@code
- * ListTelemetryTracesResponse} is {@code listTelemetryTraces}). Renaming one is a contract change.
+ * <p><b>Operation ids</b> are the ones the served OpenAPI declares ({@code @Operation} on {@code
+ * WorkspaceTelemetryController}). Renaming one is a contract change. The index records each
+ * request's route as {@code path} and its query as {@code query}, and a request body only for an
+ * operation whose OpenAPI declares one — the recording fails on a mismatch.
  *
  * <p>It <b>compares by default</b> and fails with a unified diff per differing file — including a
  * committed {@code .json} no interaction produces any more. {@code -Dgolden.update=true} (or {@code
@@ -77,6 +81,7 @@ class GoldenMasterRecordingTest {
 
   private static final String ONE = ProviderStates.TELEMETRY_FROM_ONE_SERVICE;
   private static final String EMPTY = ProviderStates.AN_EMPTY_TELEMETRY_BUFFER;
+  private static final String EVERY_KIND = ProviderStates.TELEMETRY_RECORDS_OF_EVERY_KIND;
 
   static final List<Interaction> INTERACTIONS =
       List.of(
@@ -107,15 +112,37 @@ class GoldenMasterRecordingTest {
               "{\"subscribe\": [{\"conditions\": [{\"field\": \"service\", \"op\": \"exact\","
                   + " \"value\": \"{service}\"}]}], \"source\": \"{source}\"}",
               200),
+          new Interaction(
+              EVERY_KIND,
+              "searchTelemetryRecords",
+              "POST",
+              API + "/records/search",
+              "{\"subscribe\": [{\"conditions\": []}], \"since\": \"{since}\", \"until\":"
+                  + " \"{until}\", \"limit\": 100, \"source\": \"{source}\"}",
+              200),
+          new Interaction(
+              EVERY_KIND,
+              "searchTelemetryLogs",
+              "GET",
+              API + "/logs?source={source}&sinceMinutes=60",
+              null,
+              200),
           new Interaction(EMPTY, "getTelemetryStore", "GET", API + "/store", null, 200),
           new Interaction(EMPTY, "listTelemetrySources", "GET", API + "/sources", null, 200));
 
   private static final ObjectMapper JSON = new ObjectMapper();
 
   @Inject ProviderStates states;
+  @Inject ContractClock clock;
 
   @TestHTTPResource("/")
   URL base;
+
+  /** A state fixes the clock; no other test may see it fixed. */
+  @AfterEach
+  void releaseClock() {
+    clock.release();
+  }
 
   @Test
   void goldenMastersMatchTheProvider() throws Exception {
@@ -127,7 +154,15 @@ class GoldenMasterRecordingTest {
     Map<String, ObjectNode> indexStates = new TreeMap<>();
     Map<String, Map<String, ObjectNode>> indexOperations = new TreeMap<>();
 
+    Set<String> takesBody = operationsTakingABody();
     for (Interaction interaction : INTERACTIONS) {
+      if ((interaction.body() != null) != takesBody.contains(interaction.operationId())) {
+        failures.add(
+            interaction.operationId()
+                + (interaction.body() != null
+                    ? " takes no request body, but the recording sends one: record null."
+                    : " takes a request body, but the recording sends none."));
+      }
       Map<String, String> params = states.params(interaction.state());
       Set<String> instants = new LinkedHashSet<>();
       JsonNode body = freeze(call(interaction, params), "$", instants);
@@ -151,7 +186,18 @@ class GoldenMasterRecordingTest {
       ObjectNode operation = JsonNodeFactory.instance.objectNode();
       operation.put("operationId", interaction.operationId());
       operation.put("method", interaction.method());
-      operation.put("path", interaction.path());
+      // The path is the route alone and the query its own object, as the consumers' pacts send it.
+      int at = interaction.path().indexOf('?');
+      operation.put("path", at < 0 ? interaction.path() : interaction.path().substring(0, at));
+      if (at >= 0) {
+        ObjectNode query = operation.putObject("query");
+        for (String pair : interaction.path().substring(at + 1).split("&")) {
+          int eq = pair.indexOf('=');
+          query.put(
+              URLDecoder.decode(eq < 0 ? pair : pair.substring(0, eq), StandardCharsets.UTF_8),
+              eq < 0 ? "" : URLDecoder.decode(pair.substring(eq + 1), StandardCharsets.UTF_8));
+        }
+      }
       if (interaction.body() != null) {
         operation.set("body", JSON.readTree(interaction.body()));
       }
@@ -239,6 +285,34 @@ class GoldenMasterRecordingTest {
               + response.body());
     }
     return JSON.readTree(response.body());
+  }
+
+  /** The operationIds whose operation declares a request body, read off the served openapi. */
+  private Set<String> operationsTakingABody() throws Exception {
+    HttpRequest request =
+        HttpRequest.newBuilder(
+                URI.create(base.toString()).resolve("/observability/q/openapi?format=json"))
+            .GET()
+            .build();
+    HttpResponse<String> response;
+    try (HttpClient client = HttpClient.newHttpClient()) {
+      response = client.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+    if (response.statusCode() != 200) {
+      throw new AssertionError("The openapi answered " + response.statusCode());
+    }
+    Set<String> ids = new TreeSet<>();
+    JSON.readTree(response.body())
+        .path("paths")
+        .forEach(
+            path ->
+                path.forEach(
+                    operation -> {
+                      if (operation.has("operationId") && operation.has("requestBody")) {
+                        ids.add(operation.get("operationId").asText());
+                      }
+                    }));
+    return ids;
   }
 
   private static String fill(String template, Map<String, String> params) {
