@@ -254,8 +254,7 @@ public class TelemetryStore {
   }
 
   // The `…In(sourceKey)` twins address any bucket, including the ones no repository/workspace pair
-  // can spell. The pair-keyed methods above are kept as the MCP surface's vocabulary: an agent's
-  // scope is a workspace and nothing else, so it never learns a key.
+  // can spell. The pair-keyed methods above serve the workspace lens.
 
   /** Snapshot of one source's buffered spans, oldest first. Unknown key → empty. */
   public List<StoredSpan> spansIn(String sourceKey) {

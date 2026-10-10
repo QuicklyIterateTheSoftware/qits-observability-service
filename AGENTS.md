@@ -37,7 +37,7 @@ Two consequences worth stating before you reach for a dependency or a static fie
 
 ## Package and module conventions
 
-`eu.wohlben.qits.telemetry.*`, one maven module, sub-packages `api` / `control` / `dto` / `mcp` /
+`eu.wohlben.qits.telemetry.*`, one maven module, sub-packages `api` / `control` / `dto` /
 `error`. The module directory is `service/` and the artifactId is `qits-telemetry`; they disagree on
 purpose (see the poms' header comments — directories are the git-history anchor, artifactIds are the
 settled name).
@@ -81,9 +81,8 @@ is written in its javadoc.
 **Bucket keys are opaque, and that is load-bearing.** `keyFor()` picks the workspace pair, then
 `service.name`, then `_unscoped`; the REST surface hands the key out through `…/telemetry/sources`
 and takes it back as `?source=`. No caller constructs one, so the tiers can change without a wire
-change. The MCP tools keep the pair-shaped vocabulary (`spans(repoId, workspaceId)` and friends),
-which delegate to the `…In(sourceKey)` twins — an agent's scope is a workspace and it must never
-learn a key that reaches past one.
+change. The pair-shaped methods (`spans(repoId, workspaceId)` and friends) delegate to the
+`…In(sourceKey)` twins.
 
 Nothing here may need CDI: `TelemetryStoreTest` news the store up directly and stays plain JUnit.
 That is why the eviction counters are `AtomicLong` fields and not metrics, and why `startedAt` is a
@@ -160,10 +159,7 @@ change it there first, and on both sides.
 
 ## Tests
 
-- Register scope with `FakeRepositoryScopeGuard.allow(repoId)` and
-  `FakeWorkspaceLookup.register(repoId, workspaceId)`. Both are `@ApplicationScoped` beans in
-  `src/test/java`, so they are present in every `@QuarkusTest` here; reset them in `@BeforeEach`
-  alongside `store.clear()`.
+- Reset the store with `store.clear()` in `@BeforeEach`.
 - `TelemetryFixtures` builds real `Export*ServiceRequest` protobufs. Seed the store through the real
   `TelemetryDecoder` rather than hand-constructing `StoredSpan`s where the decoding is part of what
   you're asserting.
@@ -177,7 +173,7 @@ change it there first, and on both sides.
   reads it", not more decoder cases.
 - App-level config lives in `src/main/resources/application.properties` —
   `quarkus.rest.path=/observability/api`, `quarkus.http.non-application-root-path=/observability/q`,
-  the MCP root-path, the body limit, the OpenAPI info — and **the tests inherit it**. Quarkus merges
+  the body limit, the OpenAPI info — and **the tests inherit it**. Quarkus merges
   main's copy into the test config rather than letting `src/test/resources/application.properties`
   shadow it, so the suite exercises the values that actually ship. Never re-declare an app-level key
   in test resources: the copy drifts, and the suite goes on asserting `/observability/*` while the
@@ -304,7 +300,7 @@ none.
 
 ### Stated coverage gaps
 
-Both are written down rather than papered over, and neither is claimed as an absence — an
+It is written down rather than papered over, and not claimed as an absence — an
 `assertNoEdgesTo` over something this profile switched off would be a claim about the profile.
 
 - **This service's own OTLP self-export.** qits-observability is a producer as well as the receiver,
@@ -316,12 +312,6 @@ Both are written down rather than papered over, and neither is claimed as an abs
   whichever story happened to be open. What disabling it buys is the other half — the only thing in
   the process that can post to the parent is the tee, which is what makes `StoryParent`'s structural
   `from` true.
-- **The MCP surface.** `/observability/mcp` is not driven by any story. The tools fail closed in a
-  packaged run (the `RepositoryScopeGuard` / `WorkspaceLookup` ports are `src/test` beans and are
-  simply absent), so the honest story would be "an agent is offered no telemetry tools" — which needs
-  a JSON-RPC `initialize` + `tools/list` over Streamable HTTP with session negotiation and an SSE
-  response. `TelemetryMcpToolsTest` covers the scoping logic; the protocol handshake against the
-  packaged process is unwritten.
 
 ### Running them
 

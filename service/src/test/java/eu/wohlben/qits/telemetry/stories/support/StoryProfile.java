@@ -29,7 +29,7 @@ import java.util.Map;
  * <p>A packaged process takes its configuration as {@code -D} arguments on an artifact that was
  * already built, so a build-time key here would be silently ignored and the stories would prove
  * something other than what they say. Everything that makes this service what it is — {@code
- * quarkus.rest.path}, the MCP root path, the Quinoa ignore list, the 64M body limit, the four OTel
+ * quarkus.rest.path}, the Quinoa ignore list, the 64M body limit, the four OTel
  * logging keys, and the store's caps — is left exactly as it ships.
  *
  * <ul>

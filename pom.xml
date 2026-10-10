@@ -7,7 +7,7 @@
     <!-- Standalone parent for the extracted qits-observability repo (docs/epics/qits-observability
          in the qits monorepo). The TELEMETRY context: the in-process OTLP/HTTP receiver, the
          bounded in-memory per-workspace buffer it fills, the query surface over that buffer (REST
-         for the UI, MCP tools for agents), the upstream tee, and the managed-app config relay.
+         for the UI and the qits CLI), the upstream tee, and the managed-app config relay.
          Everything that produces telemetry — the workspaces, containers and services being
          observed — belongs to their own contexts and is deliberately absent.
 
@@ -30,8 +30,8 @@
          extraction, which is the whole point of replaying rather than copying. Only the coordinates
          are namespaced.
 
-         Versions that must stay in step with qits (Quarkus platform, JDK release, the MCP server
-         extension, opentelemetry-proto) are duplicated here on purpose: a clone of THIS repo alone
+         Versions that must stay in step with qits (Quarkus platform, JDK release,
+         opentelemetry-proto) are duplicated here on purpose: a clone of THIS repo alone
          must build, with no monorepo and no parent to inherit from.
 
          Trimmed to what this module actually needs. The monorepo's app-wide machinery is
@@ -77,11 +77,8 @@
         <pact.version>4.6.21</pact.version>
         <qits.maven.repository.url>https://registry.qits.wohlben.eu/artifacts/maven/maven</qits.maven.repository.url>
 
-        <!-- Not in the platform BOM, so both are pinned here: mcp-server 2.0.0.CR2 provides the
-             stateless MCP 2026-07-28 protocol and targets Quarkus 3.33.x (≈ our 3.34.6), while
-             opentelemetry-proto's "alpha" refers to Java API stability only — the OTLP wire format
-             itself is Stable. Don't auto-bump either. -->
-        <mcp-server.version>2.0.0.CR2</mcp-server.version>
+        <!-- Not in the platform BOM, so pinned here: opentelemetry-proto's "alpha" refers to Java
+             API stability only — the OTLP wire format itself is Stable. Don't auto-bump it. -->
         <opentelemetry-proto.version>1.7.0-alpha</opentelemetry-proto.version>
 
         <!-- Also outside the platform BOM, and pinned for the same reason. 2.8.2 rather than the
@@ -126,16 +123,6 @@
                 <version>${quarkus.platform.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>io.quarkiverse.mcp</groupId>
-                <artifactId>quarkus-mcp-server-http</artifactId>
-                <version>${mcp-server.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.quarkiverse.mcp</groupId>
-                <artifactId>quarkus-mcp-server-test</artifactId>
-                <version>${mcp-server.version}</version>
             </dependency>
             <dependency>
                 <groupId>${project.groupId}</groupId>

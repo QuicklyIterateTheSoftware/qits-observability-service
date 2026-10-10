@@ -37,8 +37,6 @@ import org.junit.jupiter.api.Test;
  *       the absence of the client is as much of the assertion as the status.
  *   <li>the readiness endpoint the deployer's health gate curls, at the address the deployment
  *       assumes
- *   <li>{@code /observability/mcp}: covered by the one ignored prefix, and a mistyped path under it
- *       must reach the machine surface rather than the SPA fallback.
  * </ul>
  *
  * <p>ITs are skipped by default ({@code skipITs} in the root pom) because they need a `package`,
@@ -122,21 +120,6 @@ class PackagedSurfaceIT {
         .then()
         .statusCode(200)
         .contentType(ContentType.HTML);
-  }
-
-  @Test
-  void aMistypedMcpPathReachesTheMachineSurfaceAndNeverTheClient() {
-    // The MCP server mounts outside quarkus.rest.path, so Quinoa's own derivation would never cover
-    // it — if the one hand-spelled prefix ever regressed to that derivation, this path would fall
-    // through to the SPA and answer 200 index.html. The MCP server's own answer for a wrong
-    // sub-path may be any 4xx; the pinned fact is only that the client is not it.
-    var response = given().when().get("/observability/mcp/nope").then().extract();
-    assertFalse(
-        response.asString().contains(CLIENT_MARK),
-        "a mistyped MCP path must not be answered with the client");
-    assertTrue(
-        response.statusCode() >= 400,
-        "a mistyped MCP path must be an error, not a page; got: " + response.statusCode());
   }
 
   @Test

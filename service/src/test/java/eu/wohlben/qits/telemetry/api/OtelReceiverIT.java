@@ -370,30 +370,6 @@ class OtelReceiverIT {
         .statusCode(400);
   }
 
-  /**
-   * The MCP server refuses to start without {@code quarkus.mcp.server.observability.http.root-path},
-   * so this route answering at all is what says the extension came up in the packaged process rather
-   * than the request falling through to the router's 404.
-   */
-  @Test
-  void mcpEndpointIsMountedUnderTheObservabilitySegment() {
-    given()
-        .contentType("application/json")
-        .accept("application/json, text/event-stream")
-        .header("MCP-Protocol-Version", "2026-07-28")
-        .header("Mcp-Method", "server/discover")
-        .body(
-            "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"server/discover\",\"params\":{"
-                + "\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"2026-07-28\","
-                + "\"io.modelcontextprotocol/clientInfo\":{\"name\":\"it\",\"version\":\"1\"},"
-                + "\"io.modelcontextprotocol/clientCapabilities\":{}}}}")
-        .when()
-        .post("/observability/mcp")
-        .then()
-        .statusCode(200)
-        .body("result.supportedVersions", org.hamcrest.Matchers.hasItem("2026-07-28"));
-  }
-
   /** The framework's own surface moved with {@code quarkus.http.non-application-root-path}. */
   @Test
   void openApiAndSwaggerUiAreServedUnderTheObservabilitySegment() {

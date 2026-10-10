@@ -32,7 +32,7 @@ import org.junit.jupiter.api.Test;
  * workstream.
  *
  * <p>Everything here goes in as OTLP protobuf bytes over HTTP and comes back out through the routes
- * the SPA and the MCP tools read. Nothing hand-assembles store state, and nothing calls the decoder
+ * the SPA and the qits CLI read. Nothing hand-assembles store state, and nothing calls the decoder
  * directly: those are covered a layer down ({@code TelemetryDecoderTest}, {@code
  * OtelReceiverResourceTest}), and what is left unproven by them is the question a producer rollout
  * actually asks — <em>does a service that exports its logs here become answerable?</em> A receiver

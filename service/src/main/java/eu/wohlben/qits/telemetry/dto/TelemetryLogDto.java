@@ -3,7 +3,7 @@ package eu.wohlben.qits.telemetry.dto;
 import java.util.Map;
 
 /**
- * A log record as returned by the telemetry query surface (MCP tools and REST twins).
+ * A log record as returned by the telemetry query surface (the REST routes).
  *
  * <p>{@code attributes} are the record's own. {@code resourceAttributes} are the emitting
  * resource's, and they are passed through <em>whole</em> — not filtered to a known set. That is what

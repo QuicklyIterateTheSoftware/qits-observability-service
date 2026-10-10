@@ -235,7 +235,7 @@ RUN chmod +x /work/qits-observability
 # One port, and it is the only one: the OTLP receiver is in-process JAX-RS on the ordinary HTTP port
 # (`POST /observability/api/otel/v1/{traces,logs,metrics}`), not a collector's 4317/4318 listener.
 # Nothing here enables a separate management interface either, so 8080 carries ingest, the REST query
-# surface, the `observability` MCP server and /observability/q alike. Exporters are pointed at a
+# surface and /observability/q alike. Exporters are pointed at a
 # literal URL under that same port — see application.properties on `quarkus.rest.path`.
 EXPOSE 8080
 USER 1001

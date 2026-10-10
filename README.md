@@ -1,8 +1,8 @@
 # qits-observability
 
 The **telemetry** context of qits: an in-process OTLP/HTTP receiver, a bounded in-memory buffer of
-what it receives, and a query surface over that buffer for both humans (REST) and coding agents
-(MCP). Plus the managed-app relay that goes with it, the upstream OTLP tee.
+what it receives, and a query surface over that buffer (REST, for the UI and the qits CLI).
+Plus the managed-app relay that goes with it, the upstream OTLP tee.
 
 Its **wire** surface lives under **`/observability`** — the edge path-routes verbatim by prefix on
 every vhost, so the segment is part of the path this process itself serves, on `qits-net` as much as
@@ -37,9 +37,8 @@ gateway constant belongs to the gateway.
 | `service/` | The whole context, artifactId `qits-telemetry`. |
 | `service/src/main/webui/` | The SPA, as the `qits-observability-frontend` submodule. Built and served by Quinoa. |
 | `…/api/` | `OtelReceiverResource` (OTLP ingest), `OtelForwarder` (the upstream tee), `WorkspaceTelemetryController` (the UI's JSON), `TelemetryExceptionMapper`. |
-| `…/control/` | `TelemetryDecoder` (protobuf → records), `TelemetryStore` (the buffer), `TelemetryQueryService` (every query both surfaces answer from), `TelemetrySizeEstimator`, `TelemetryChangePublisher`. |
+| `…/control/` | `TelemetryDecoder` (protobuf → records), `TelemetryStore` (the buffer), `TelemetryQueryService` (every query the REST surface answers from), `TelemetrySizeEstimator`, `TelemetryChangePublisher`. |
 | `…/dto/` | The stored records and the wire DTOs. |
-| `…/mcp/` | `TelemetryMcpTools` (five tools on the `observability` MCP server), `TelemetryToolFilter`, `RepositoryScope`, `WorkspaceScope`, and the two ports. |
 | `…/error/` | This context's own `DomainException` family (migration-plan.md §5). |
 
 One module, not the usual `domain/` + `service/` pair. This is the only qits context whose business
@@ -86,7 +85,7 @@ Served at **`/`**, above its own API rather than beside it. The submodule's `ang
 `baseHref` to `/`, so there is no segment left for the two halves to disagree about. SPA routing is
 on, so deep links — `/traces/<id>` and its project-scoped form `/qits/traces` alike — fall back to
 `index.html`; the whole `/observability` prefix is excluded from that fallback, which is what keeps
-the API, the health endpoints and the MCP server answering for themselves.
+the API and the health endpoints answering for themselves.
 
 **This makes node/npm a build prerequisite, and only a build one.** Quinoa is disabled in test mode
 by default, so `mvn verify`'s suite is as offline and as fast as it was — the clone-alone rule holds
@@ -141,19 +140,9 @@ dropped from 5,000 to 2,000 in the same change.
 
 ## The boundary
 
-Everything this context needs from the rest of qits goes through a port it declares and the
-consuming application implements. Cross-context references are by string id, never a foreign key.
-
-| Port | Required? | Absent means |
-|---|---|---|
-| `RepositoryScopeGuard` | no | the telemetry MCP tools are **hidden and rejected** (fail closed) |
-| `WorkspaceLookup` | no | likewise |
-
-Both are the MCP scoping checks: "is this repository inside the session's project?" (the projects
-context's answer) and "is this still an active workspace of that repository?" (the workspaces
-context's answer). They are cross-project isolation checks, so *unconfigured* must never degrade to
-*unchecked* — without them `TelemetryToolFilter` does not list the tools and a direct call gets a
-404. Ingest, the store and the REST query surface need neither and work standalone.
+This context needs nothing from the rest of qits: ingest, the store and the REST query surface
+work standalone. Cross-context references are by string id, never a foreign key. Agents read
+telemetry through the qits CLI, which calls the REST surface.
 
 In the other direction this context publishes `TelemetryChanged(repoId, workspaceId)` as a CDI async
 event whenever a scoped ingest fills a workspace's buffers (deduped — a 1000-span batch for one
@@ -182,8 +171,7 @@ not from this event.
 
 `service/src/main/resources/application.properties` now carries what a deployment needs and this
 repo can decide — `quarkus.rest.path=/observability/api`,
-`quarkus.http.non-application-root-path=/observability/q`, the MCP root-path (without which the
-process does not boot at all), the 64M body limit, and the OpenAPI/swagger-ui settings. Read that
+`quarkus.http.non-application-root-path=/observability/q`, the 64M body limit, and the OpenAPI/swagger-ui settings. Read that
 file before adding anything here; it explains why each line is load-bearing.
 
 What is still the deployment's to provide:
@@ -200,8 +188,7 @@ What is still the deployment's to provide:
 
 Routes: `POST /observability/api/otel/v1/{traces,logs,metrics}` (ingest), the query surface below,
 the live stream at `/observability/stream` (a WebSocket, see [The live stream](#the-live-stream)),
-plus `/observability/mcp` (the MCP server, named `observability`) and `/observability/q/{openapi,
-swagger-ui}`. Ingest is hidden from the OpenAPI document on purpose — it is a wire protocol spoken
+plus `/observability/q/{openapi,swagger-ui}`. Ingest is hidden from the OpenAPI document on purpose — it is a wire protocol spoken
 by SDKs, not something a generated client calls; everything else is in `docs/openapi.yml`.
 
 | Route | Answers |

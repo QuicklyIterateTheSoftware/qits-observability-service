@@ -24,20 +24,16 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * The one query surface over the {@link TelemetryStore}, shared verbatim by the MCP tools and the
- * REST twins so agents and the UI always see the same answers. All time windows filter on {@code
+ * The one query surface over the {@link TelemetryStore}, behind the REST routes that the UI and
+ * the qits CLI read. All time windows filter on {@code
  * receivedAtMillis} (the server-clock ingest stamp) — a container with a skewed clock can't dodge
  * or fake a window. A null {@code sinceMinutes} means "everything still buffered": the buffers are
  * bounded and recent by construction.
  *
  * <p>Two vocabularies address a bucket, and the difference is not cosmetic. The {@code (repoId,
- * workspaceId)} methods are the MCP tools': an agent's scope is a workspace and it never learns a
- * key. The {@code …In(sourceKey)} methods are the REST surface's, because most telemetry on this
+ * workspaceId)} methods are the workspace lens. The {@code …In(sourceKey)} methods are the REST surface's, because most telemetry on this
  * platform lands in buckets keyed on {@code service.name}, which no pair can spell. The pair
  * methods delegate to the key methods, so both vocabularies are the same code answering.
- *
- * <p>{@link #sources()} and {@link #storeState()} have no scope to check, which is why they are
- * REST-only and deliberately not MCP tools — see {@code TelemetryMcpTools}' javadoc.
  */
 @ApplicationScoped
 public class TelemetryQueryService {

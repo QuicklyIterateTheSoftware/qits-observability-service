@@ -19,7 +19,7 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/** The UI's JSON twins answer from the same store buckets as the MCP tools. */
+/** The UI's JSON routes answer from the store buckets. */
 @QuarkusTest
 class WorkspaceTelemetryControllerTest {
 

@@ -33,9 +33,8 @@ import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 /**
- * The REST twins of the telemetry MCP tools, plus the listing queries the tools deliberately do not
- * have. Read-only JSON over the same {@link TelemetryQueryService}, so humans and agents see
- * identical answers to the questions both are allowed to ask.
+ * The telemetry query surface: read-only JSON over {@link TelemetryQueryService}, for the UI and
+ * the qits CLI.
  *
  * <p><strong>Naming a bucket.</strong> Two ways, mutually exclusive, {@code ?source=} winning:
  *
@@ -64,8 +63,7 @@ import org.eclipse.microprofile.openapi.annotations.media.Schema;
  * truncated} beside the items so a screen can say "showing 200 of 1,841".
  *
  * <p>Nothing here is an authorization boundary: an unknown or foreign scope selects a bucket that
- * is simply empty. The scoping ports ({@code RepositoryScopeGuard} / {@code WorkspaceLookup}) guard
- * the MCP surface, where the scope comes from the agent's connection rather than from the caller.
+ * is simply empty.
  */
 @Path("/telemetry")
 @Produces(MediaType.APPLICATION_JSON)

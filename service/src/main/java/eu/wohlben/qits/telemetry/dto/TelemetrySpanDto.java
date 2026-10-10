@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A span as returned by the telemetry query surface (MCP tools and REST twins).
+ * A span as returned by the telemetry query surface (the REST routes).
  *
  * <p>{@code resourceAttributes} carries the emitting resource whole, for the reason and with the
  * caveats written on {@link TelemetryLogDto}: without it a slow endpoint and a slow release read the

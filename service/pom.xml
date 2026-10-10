@@ -12,7 +12,7 @@
     </parent>
 
     <!-- The whole telemetry context, in one module: `eu.wohlben.qits.telemetry.{api,control,dto,
-         mcp,error}`. Unlike every other qits context there is no domain/service split, because
+         error}`. Unlike every other qits context there is no domain/service split, because
          there was none to replay — migration-plan.md §3.6: telemetry is the one domain whose
          business logic already lived entirely in the monorepo's `service` module. The buffer is
          in-memory, so the usual reason for a framework-free `domain` jar (entities + persistence
@@ -104,12 +104,6 @@
             <artifactId>opentelemetry-proto</artifactId>
         </dependency>
         <dependency>
-            <!-- MCP server (Streamable HTTP + legacy SSE): the telemetry tools mount on the
-                 "repository" server. Version pinned in the parent. -->
-            <groupId>io.quarkiverse.mcp</groupId>
-            <artifactId>quarkus-mcp-server-http</artifactId>
-        </dependency>
-        <dependency>
             <!-- Builds the Angular SPA in src/main/webui (the qits-spa-observability submodule)
                  during augmentation and serves the bundle as static resources from this process,
                  so /observability is one deployable rather than a service plus a web server.
@@ -128,11 +122,6 @@
         <dependency>
             <groupId>io.rest-assured</groupId>
             <artifactId>rest-assured</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.quarkiverse.mcp</groupId>
-            <artifactId>quarkus-mcp-server-test</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
