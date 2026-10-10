@@ -13,9 +13,11 @@ import java.util.Map;
  *   <li>{@code quarkus.oidc.public-key} replaces the key fetch. {@code auth-server-url} is cleared
  *       beside it, because a tenant that still has a server URL tries to reach it on the first
  *       bearer.
+ *   <li>{@code quarkus.oidc.token.issuer} stands in for the issuer the idp's discovery document
+ *       publishes: with no server URL there is no discovery to read it from.
  * </ul>
  *
- * <p>Everything else, the issuer and the audience included, is the shipped configuration.
+ * <p>Everything else, the audience included, is the shipped configuration.
  * {@link BearerJwksTest} covers the shipped key fetch itself.
  */
 public class BearerAuthProfile implements QuarkusTestProfile {
@@ -26,6 +28,7 @@ public class BearerAuthProfile implements QuarkusTestProfile {
         "quarkus.oidc.tenant-enabled", "true",
         "qits.auth.forward.dev-user", "",
         "quarkus.oidc.auth-server-url", "",
-        "quarkus.oidc.public-key", BearerTokens.verificationKey());
+        "quarkus.oidc.public-key", BearerTokens.verificationKey(),
+        "quarkus.oidc.token.issuer", BearerTokens.ISSUER);
   }
 }

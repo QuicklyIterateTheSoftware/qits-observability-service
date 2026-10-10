@@ -6,7 +6,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
 import java.time.Duration;
-import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -28,16 +27,11 @@ final class BearerTokens {
   static final String KEY_ID = "observability-suite-key";
 
   /**
-   * The issuer derived from the domain, as {@link IssuerValidator} derives it: {@code
-   * https://idp.qits.<QITS_DOMAIN>}, {@code localhost} when the variable is unset — as it is here
-   * unless the machine running the suite carries one.
+   * The issuer the idp publishes in its discovery document, {@code https://idp.qits.<domain>}, here
+   * for the {@code localhost} domain. {@link JwksStub} publishes it, and {@link BearerAuthProfile}
+   * names it where no discovery runs.
    */
-  static final String ISSUER =
-      "https://idp.qits."
-          + Optional.ofNullable(System.getenv("QITS_DOMAIN"))
-              .map(String::strip)
-              .filter(d -> !d.isEmpty())
-              .orElse("localhost");
+  static final String ISSUER = "https://idp.qits.localhost";
 
   /** What qits-platform-idp used to write into {@code iss}; refused since qits-730 wave 3. */
   static final String LEGACY_ISSUER = "http://qits-platform-idp:8080/idp";

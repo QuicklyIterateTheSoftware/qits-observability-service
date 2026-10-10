@@ -17,13 +17,14 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * A stand-in for qits-platform-idp's key endpoint. It serves {@code GET /idp/jwks} with the suite's
- * verification key under {@link BearerTokens#KEY_ID}, and counts the fetches. Loopback only, on an
- * ephemeral port.
+ * A stand-in for the idp's discovery and key endpoints. It serves {@code GET
+ * /idp/.well-known/openid-configuration} (issuer {@link BearerTokens#ISSUER}, {@code jwks_uri} its
+ * own {@code /idp/jwks}) and {@code GET /idp/jwks} with the suite's verification key under {@link
+ * BearerTokens#KEY_ID}, and counts the key fetches. Loopback only, on an ephemeral port.
  *
  * <p>It moves only {@code auth-server-url} (and turns the tenant on, with the dev user blanked). So
- * the key path under test is the one that ships: discovery off, {@code jwks-path=jwks}, the shipped
- * issuer and audiences, and keys fetched by {@code kid} when a token needs one.
+ * the key path under test is the one that ships: discovery on, the issuer from discovery, the
+ * shipped audience, and keys fetched by {@code kid} when a token needs one.
  */
 public class JwksStub implements QuarkusTestResourceLifecycleManager {
 
@@ -31,7 +32,7 @@ public class JwksStub implements QuarkusTestResourceLifecycleManager {
 
   private HttpServer server;
 
-  /** How many times the service has fetched the keys since this stub started. */
+  /** How many times the service has fetched the keys (the JWKS) since this stub started. */
   static int fetches() {
     return FETCHES.get();
   }
@@ -45,6 +46,22 @@ public class JwksStub implements QuarkusTestResourceLifecycleManager {
     } catch (IOException cannotBind) {
       throw new UncheckedIOException(cannotBind);
     }
+    String idp =
+        "http://"
+            + InetAddress.getLoopbackAddress().getHostAddress()
+            + ":"
+            + server.getAddress().getPort()
+            + "/idp";
+    byte[] discovery = discovery(idp).getBytes(StandardCharsets.UTF_8);
+    server.createContext(
+        "/idp/.well-known/openid-configuration",
+        exchange -> {
+          exchange.getResponseHeaders().set("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, discovery.length);
+          try (var out = exchange.getResponseBody()) {
+            out.write(discovery);
+          }
+        });
     server.createContext(
         "/idp/jwks",
         exchange -> {
@@ -56,12 +73,6 @@ public class JwksStub implements QuarkusTestResourceLifecycleManager {
           }
         });
     server.start();
-    String idp =
-        "http://"
-            + InetAddress.getLoopbackAddress().getHostAddress()
-            + ":"
-            + server.getAddress().getPort()
-            + "/idp";
     return Map.of(
         "quarkus.oidc.tenant-enabled", "true",
         "qits.auth.forward.dev-user", "",
@@ -73,6 +84,17 @@ public class JwksStub implements QuarkusTestResourceLifecycleManager {
     if (server != null) {
       server.stop(0);
     }
+  }
+
+  /** The discovery document: the fields quarkus-oidc reads of the idp's. */
+  private static String discovery(String idp) {
+    return "{\"issuer\":\""
+        + BearerTokens.ISSUER
+        + "\",\"jwks_uri\":\""
+        + idp
+        + "/jwks\",\"token_endpoint\":\""
+        + idp
+        + "/token\"}";
   }
 
   /** The verification key as a one-key JWKS, the shape qits-platform-idp publishes. */

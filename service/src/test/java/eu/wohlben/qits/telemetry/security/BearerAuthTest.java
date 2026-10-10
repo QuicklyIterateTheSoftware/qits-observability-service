@@ -129,10 +129,10 @@ class BearerAuthTest {
     assertEquals(403, StreamClient.refusal(socket, Map.of("Authorization", reader)));
   }
 
-  // --- the issuer: derived from the domain, and only the derived one is accepted (qits-730) -----
+  // --- the issuer: only the one the idp publishes is accepted (qits-730) -----------------------
 
   @Test
-  void aTokenFromTheDomainDerivedIssuerIsAccepted() {
+  void aTokenFromThePublishedIssuerIsAccepted() {
     given()
         .header(
             "Authorization", bearer(BearerTokens.tokenFrom(BearerTokens.ISSUER, "qits:admin")))
@@ -156,8 +156,7 @@ class BearerAuthTest {
 
   @Test
   void aTokenFromAForeignIssuerIsUnauthorized() {
-    // Correctly signed with the trusted key; only `iss` is wrong. Nothing in the shipped config
-    // checks the issuer, so this 401 is IssuerValidator's alone.
+    // Correctly signed with the trusted key; only `iss` is wrong.
     given()
         .header(
             "Authorization",

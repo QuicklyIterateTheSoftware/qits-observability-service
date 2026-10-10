@@ -102,20 +102,19 @@ workspace's agent (qits-628 follow-up) — is admitted everywhere `qits:admin` i
   qits-platform-idp. The edge removes every `X-Qits-*` header from a request that carries a Bearer
   or Basic credential, so headers cannot carry that person. `quarkus-oidc` checks the token
   (signature, issuer, and an `aud` that holds `qits-platform`, the one audience qits-platform-idp
-  stamps on every token it mints), and its `groups` claim becomes the roles. The issuer is never
-  configuration: it is derived from `QITS_DOMAIN` (`https://idp.qits.<domain>`, `localhost` when
-  unset) and checked by `security/IssuerValidator`, a jose4j `Validator` bean the extension applies
-  to every token — there is no `quarkus.oidc.token.issuer`, and with discovery off nothing else
-  checks `iss`. Until the idp stamps that issuer (qits-730) the bean also accepts the legacy
-  `http://qits-platform-idp:8080/idp`.
+  stamps on every token it mints), and its `groups` claim becomes the roles. Discovery is on: the
+  tenant reads the idp's `/.well-known/openid-configuration` and takes the key address and the
+  issuer from it, so a token whose `iss` is not the published issuer (`https://idp.qits.<domain>`)
+  is refused. The issuer is never configuration: there is no `quarkus.oidc.token.issuer`.
 
 A request with no `Authorization` header never reaches the token check, so header traffic is what it
 was. A request with a token is decided by the token: OIDC's mechanism runs first, so a token that
 does not validate is 401 even beside valid headers. The tenant is **on by default** and needs no
-deploy config; `%dev` and `%test` turn it off. **Only a bearer ever reaches the idp**
-(`quarkus.oidc.jwks.resolve-early=false`): boot, header traffic and ingest make no call.
+deploy config; `%dev` and `%test` turn it off. **Only a bearer ever fetches keys**
+(`quarkus.oidc.jwks.resolve-early=false`): boot, header traffic and ingest make no JWKS fetch.
 `BearerAuthTest` signs real RS256 tokens with a test key (`BearerAuthProfile` gives the extension
-the public half); `BearerJwksTest` pins the shipped key fetch against `JwksStub`.
+the public half); `BearerJwksTest` pins the shipped discovery and key fetch against `JwksStub`.
+`IdpConsumerPactTest` is this service's pact with qits-idp-service (discovery and JWKS).
 
 **`identity.isAnonymous()` is not a security state** — it means "no name for the audit row". A check
 of the form `if (identity.isAnonymous()) deny` would look like a security control and be worth
