@@ -43,6 +43,7 @@ import java.util.Map;
 public class TelemetryQueryService {
 
   @Inject TelemetryStore store;
+  @Inject TelemetryClock clock = new TelemetryClock();
 
   /**
    * A bounded answer: the page, how many matched, and whether the caller is looking at all of them.
@@ -493,9 +494,7 @@ public class TelemetryQueryService {
     return service == null || service.isBlank() || service.equals(serviceName);
   }
 
-  private static long cutoff(Integer sinceMinutes) {
-    return sinceMinutes == null
-        ? Long.MIN_VALUE
-        : System.currentTimeMillis() - sinceMinutes * 60_000L;
+  private long cutoff(Integer sinceMinutes) {
+    return sinceMinutes == null ? Long.MIN_VALUE : clock.millis() - sinceMinutes * 60_000L;
   }
 }

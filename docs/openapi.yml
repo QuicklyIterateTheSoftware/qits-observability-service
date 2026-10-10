@@ -395,6 +395,7 @@ components:
 paths:
   /observability/api/telemetry/errors:
     get:
+      operationId: listTelemetryErrors
       parameters:
       - name: limit
         in: query
@@ -444,6 +445,7 @@ paths:
         - qits:agent
   /observability/api/telemetry/logs:
     get:
+      operationId: searchTelemetryLogs
       parameters:
       - name: limit
         in: query
@@ -501,6 +503,7 @@ paths:
         - qits:agent
   /observability/api/telemetry/metrics:
     get:
+      operationId: listTelemetryMetrics
       parameters:
       - name: name
         in: query
@@ -543,6 +546,7 @@ paths:
         - qits:agent
   /observability/api/telemetry/records/search:
     post:
+      operationId: searchTelemetryRecords
       requestBody:
         content:
           application/json:
@@ -572,6 +576,7 @@ paths:
         - qits:agent
   /observability/api/telemetry/slow-spans:
     get:
+      operationId: listSlowSpans
       parameters:
       - name: limit
         in: query
@@ -632,6 +637,7 @@ paths:
         - qits:agent
   /observability/api/telemetry/sources:
     get:
+      operationId: listTelemetrySources
       responses:
         "200":
           description: OK
@@ -653,6 +659,7 @@ paths:
         - qits:agent
   /observability/api/telemetry/store:
     get:
+      operationId: getTelemetryStore
       responses:
         "200":
           description: OK
@@ -674,6 +681,7 @@ paths:
         - qits:agent
   /observability/api/telemetry/traces:
     get:
+      operationId: listTelemetryTraces
       parameters:
       - name: limit
         in: query
@@ -734,6 +742,7 @@ paths:
         - qits:agent
   /observability/api/telemetry/traces/{traceId}:
     get:
+      operationId: getTelemetryTrace
       parameters:
       - name: traceId
         in: path

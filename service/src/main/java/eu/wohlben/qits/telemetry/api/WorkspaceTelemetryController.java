@@ -1,6 +1,7 @@
 package eu.wohlben.qits.telemetry.api;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import eu.wohlben.qits.telemetry.control.TelemetryClock;
 import eu.wohlben.qits.telemetry.control.TelemetryFilter;
 import eu.wohlben.qits.telemetry.control.TelemetryQueryService;
 import eu.wohlben.qits.telemetry.control.TelemetryRecordSearch;
@@ -27,6 +28,7 @@ import jakarta.ws.rs.core.MediaType;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
@@ -77,6 +79,7 @@ public class WorkspaceTelemetryController {
   static final int MAX_LIMIT = 1000;
 
   @Inject TelemetryQueryService queryService;
+  @Inject TelemetryClock clock;
 
   /**
    * The buffer's own state. Everything a screen needs to say what it is showing: when the buffer
@@ -84,6 +87,7 @@ public class WorkspaceTelemetryController {
    */
   @GET
   @Path("/store")
+  @Operation(operationId = "getTelemetryStore")
   public TelemetryStoreStateDto store() {
     return queryService.storeState();
   }
@@ -96,6 +100,7 @@ public class WorkspaceTelemetryController {
   /** Every bucket in the buffer. The {@code key} of each is what {@code ?source=} takes. */
   @GET
   @Path("/sources")
+  @Operation(operationId = "listTelemetrySources")
   public ListTelemetrySourcesRequest.Response sources() {
     return new ListTelemetrySourcesRequest.Response(queryService.sources());
   }
@@ -107,6 +112,7 @@ public class WorkspaceTelemetryController {
 
   @GET
   @Path("/errors")
+  @Operation(operationId = "listTelemetryErrors")
   public ListTelemetryErrorsRequest.Response errors(
       @QueryParam("source") String source,
       @QueryParam("repositoryId") String repoId,
@@ -135,6 +141,7 @@ public class WorkspaceTelemetryController {
    */
   @GET
   @Path("/traces")
+  @Operation(operationId = "listTelemetryTraces")
   public ListTelemetryTracesRequest.Response traces(
       @QueryParam("source") String source,
       @QueryParam("repositoryId") String repoId,
@@ -169,6 +176,7 @@ public class WorkspaceTelemetryController {
    */
   @GET
   @Path("/traces/{traceId}")
+  @Operation(operationId = "getTelemetryTrace")
   public GetTelemetryTraceRequest.Response trace(
       @QueryParam("source") String source,
       @QueryParam("repositoryId") String repoId,
@@ -186,6 +194,7 @@ public class WorkspaceTelemetryController {
 
   @GET
   @Path("/slow-spans")
+  @Operation(operationId = "listSlowSpans")
   public ListSlowSpansRequest.Response slowSpans(
       @QueryParam("source") String source,
       @QueryParam("repositoryId") String repoId,
@@ -230,6 +239,7 @@ public class WorkspaceTelemetryController {
    */
   @GET
   @Path("/logs")
+  @Operation(operationId = "searchTelemetryLogs")
   public SearchTelemetryLogsRequest.Response logs(
       @QueryParam("source") String source,
       @QueryParam("repositoryId") String repoId,
@@ -262,6 +272,7 @@ public class WorkspaceTelemetryController {
    */
   @GET
   @Path("/metrics")
+  @Operation(operationId = "listTelemetryMetrics")
   public ListTelemetryMetricsRequest.Response metrics(
       @QueryParam("source") String source,
       @QueryParam("repositoryId") String repoId,
@@ -330,6 +341,7 @@ public class WorkspaceTelemetryController {
    */
   @POST
   @Path("/records/search")
+  @Operation(operationId = "searchTelemetryRecords")
   @Consumes(MediaType.APPLICATION_JSON)
   public SearchTelemetryRecordsRequest.Response searchRecords(
       SearchTelemetryRecordsRequest request) {
@@ -345,7 +357,7 @@ public class WorkspaceTelemetryController {
     Instant since = instant("since", request.since());
     Instant until = instant("until", request.until());
     if (until == null) {
-      until = Instant.now();
+      until = clock.now();
     }
     if (since != null && since.isAfter(until)) {
       throw new BadRequestException("since must not be after until");
