@@ -59,6 +59,13 @@
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
         <quarkus.platform.version>3.34.6</quarkus.platform.version>
         <qits.auth-core.version>2026.1002.70617</qits.auth-core.version>
+        <!-- Service-to-service HTTP that says who is calling: QitsHttpClients.wrap turns a raw
+             java.net.http.HttpClient into one that opens a CLIENT span and sends traceparent plus
+             X-Qits-Caller; the server filter (jandex-discovered off this jar alone) records an
+             inbound caller on the server span. OtelForwarder's own client stays unwrapped
+             (@RawHttpClient) — this service still takes the dependency so the server filter is
+             active. Not released yet (qits-1198). -->
+        <qits.http-core.version>0-qits-1198-local</qits.http-core.version>
         <!-- The user-story framework (test scope): the seven @UserStory classes under
              service/src/test/java/…/telemetry/stories (plus TelemetryBootstrapIT, which owns the
              boot) are written against it, so a run that boots the packaged artifact also
@@ -133,6 +140,11 @@
                 <groupId>${project.groupId}</groupId>
                 <artifactId>qits-userflows</artifactId>
                 <version>${qits.userflows.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>qits-http-core</artifactId>
+                <version>${qits.http-core.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.opentelemetry.proto</groupId>

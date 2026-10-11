@@ -1,5 +1,6 @@
 package eu.wohlben.qits.telemetry.api;
 
+import eu.wohlben.qits.http.RawHttpClient;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.net.URI;
@@ -23,8 +24,16 @@ import org.jboss.logging.Logger;
  * failures are ignored beyond a debug log — telemetry is best-effort and the local store must never
  * fail because the parent is down. Bodies are relayed exactly as received (still gzipped if the
  * exporter compressed), with Content-Type and Content-Encoding passed through.
+ *
+ * <p><b>Deliberately unwrapped.</b> {@link eu.wohlben.qits.http.QitsHttpClients#wrap} opens a CLIENT
+ * span per request — exactly the shape of the thing this class forwards, an OTLP export — so wrapping
+ * the tee would make every export trace its own exporter, recursively.
  */
 @ApplicationScoped
+@RawHttpClient(
+    reason =
+        "an OTLP tee to a parent observability instance: wrapping it would open a CLIENT span for"
+            + " every export, i.e. trace its own exporter")
 public class OtelForwarder {
 
   private static final Logger LOG = Logger.getLogger(OtelForwarder.class);

@@ -87,6 +87,14 @@
             <artifactId>quarkus-websockets-next</artifactId>
         </dependency>
         <dependency>
+            <!-- CallerServerFilter, discovered off this jar alone through its jandex index: an
+                 inbound X-Qits-Caller is recorded on the server span as qits.caller. OtelForwarder's
+                 own HttpClient stays unwrapped (@RawHttpClient) — wrapping it would trace the
+                 exporter's own export — so this is taken only for the server half. -->
+            <groupId>${project.groupId}</groupId>
+            <artifactId>qits-http-core</artifactId>
+        </dependency>
+        <dependency>
             <!-- The JSON query surface (WorkspaceTelemetryController) and the protobuf ingest
                  routes (OtelReceiverResource). -->
             <groupId>io.quarkus</groupId>
