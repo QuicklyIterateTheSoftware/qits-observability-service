@@ -65,7 +65,7 @@
              inbound caller on the server span. OtelForwarder's own client stays unwrapped
              (@RawHttpClient) — this service still takes the dependency so the server filter is
              active. Not released yet (qits-1198). -->
-        <qits.http-core.version>0-qits-1198-local</qits.http-core.version>
+        <qits.http-core.version>2026.1011.185745</qits.http-core.version>
         <!-- The user-story framework (test scope): the seven @UserStory classes under
              service/src/test/java/…/telemetry/stories (plus TelemetryBootstrapIT, which owns the
              boot) are written against it, so a run that boots the packaged artifact also
