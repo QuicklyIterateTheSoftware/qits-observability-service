@@ -58,14 +58,14 @@
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
         <quarkus.platform.version>3.34.6</quarkus.platform.version>
-        <qits.auth-core.version>2026.1002.70617</qits.auth-core.version>
+        <qits.auth-core.version>2026.1012.173247</qits.auth-core.version>
         <!-- Service-to-service HTTP that says who is calling: QitsHttpClients.wrap turns a raw
              java.net.http.HttpClient into one that opens a CLIENT span and sends traceparent plus
              X-Qits-Caller; the server filter (jandex-discovered off this jar alone) records an
              inbound caller on the server span. OtelForwarder's own client stays unwrapped
              (@RawHttpClient) — this service still takes the dependency so the server filter is
              active. Not released yet (qits-1198). -->
-        <qits.http-core.version>2026.1011.185745</qits.http-core.version>
+        <qits.http-core.version>2026.1013.64811</qits.http-core.version>
         <!-- The user-story framework (test scope): the seven @UserStory classes under
              service/src/test/java/…/telemetry/stories (plus TelemetryBootstrapIT, which owns the
              boot) are written against it, so a run that boots the packaged artifact also
@@ -80,7 +80,7 @@
              golden masters and writes pacts/qits-observability-service_qits-idp-service.json.
              Exact pins: a newer recording is a deliberate bump. -->
         <qits.pact-consumer.version>2026.1010.141817</qits.pact-consumer.version>
-        <qits.idp-golden-masters.version>2026.1010.134259</qits.idp-golden-masters.version>
+        <qits.idp-golden-masters.version>2026.1012.180836</qits.idp-golden-masters.version>
         <pact.version>4.6.21</pact.version>
         <qits.maven.repository.url>https://registry.qits.wohlben.eu/artifacts/maven/maven</qits.maven.repository.url>
 
