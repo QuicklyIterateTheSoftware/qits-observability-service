@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
+import eu.wohlben.qits.telemetry.api.OtelReceiverResource;
 import io.quarkus.test.common.http.TestHTTPResource;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
@@ -52,6 +53,13 @@ import org.junit.jupiter.api.Test;
  * request's route as {@code path} and its query as {@code query}, and a request body only for an
  * operation whose OpenAPI declares one — the recording fails on a mismatch.
  *
+ * <p><b>The OTLP receiver</b> ({@code exportLogs}) is hidden from the served OpenAPI but carries an
+ * operationId, and that is all a recording needs. Its request is protobuf, which no pact matches, so
+ * it is recorded without a body: the index holds its {@code contentType} and its request {@code
+ * headers} (the bearer, as {@code {authorization}}), and the call sends a zero-length body — an
+ * empty {@code ExportLogsServiceRequest}, which decodes to nothing. Its answer is protobuf too, so
+ * the file holds {@code {}}: a consumer reads its status only.
+ *
  * <p>It <b>compares by default</b> and fails with a unified diff per differing file — including a
  * committed {@code .json} no interaction produces any more. {@code -Dgolden.update=true} (or {@code
  * QITS_GOLDEN_UPDATE=true}) rewrites instead, and deletes such stale files; see {@link
@@ -72,12 +80,31 @@ class GoldenMasterRecordingTest {
 
   private static final String API = "/observability/api/telemetry";
 
+  private static final String OTEL = "/observability/api/otel/v1";
+
+  private static final String PROTOBUF = "application/x-protobuf";
+
   /**
-   * One recorded interaction. {@code path} and {@code body} may name a state param as {@code
-   * {name}}; the call uses the param's value, the index keeps the placeholder.
+   * One recorded interaction. {@code path}, {@code body} and the {@code headers}' values may name a
+   * state param as {@code {name}}; the call uses the param's value, the index keeps the placeholder.
+   * {@code contentType} names a request type other than JSON (null: JSON, when there is a body); a
+   * non-JSON interaction is recorded without its body and with a {@code {}} answer.
    */
   record Interaction(
-      String state, String operationId, String method, String path, String body, int status) {}
+      String state,
+      String operationId,
+      String method,
+      String path,
+      String body,
+      int status,
+      String contentType,
+      Map<String, String> headers) {
+
+    Interaction(
+        String state, String operationId, String method, String path, String body, int status) {
+      this(state, operationId, method, path, body, status, null, Map.of());
+    }
+  }
 
   private static final String ONE = ProviderStates.TELEMETRY_FROM_ONE_SERVICE;
   private static final String EMPTY = ProviderStates.AN_EMPTY_TELEMETRY_BUFFER;
@@ -128,7 +155,17 @@ class GoldenMasterRecordingTest {
               null,
               200),
           new Interaction(EMPTY, "getTelemetryStore", "GET", API + "/store", null, 200),
-          new Interaction(EMPTY, "listTelemetrySources", "GET", API + "/sources", null, 200));
+          new Interaction(EMPTY, "listTelemetrySources", "GET", API + "/sources", null, 200),
+          // What qits-runner-toolkit's Telemetry sends (qits-1163): protobuf under a bearer.
+          new Interaction(
+              EMPTY,
+              OtelReceiverResource.EXPORT_LOGS,
+              "POST",
+              OTEL + "/logs",
+              null,
+              200,
+              PROTOBUF,
+              Map.of("Authorization", "{authorization}")));
 
   private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -198,6 +235,13 @@ class GoldenMasterRecordingTest {
               eq < 0 ? "" : URLDecoder.decode(pair.substring(eq + 1), StandardCharsets.UTF_8));
         }
       }
+      if (!interaction.headers().isEmpty()) {
+        ObjectNode headers = operation.putObject("headers");
+        new TreeMap<>(interaction.headers()).forEach(headers::put);
+      }
+      if (interaction.contentType() != null) {
+        operation.put("contentType", interaction.contentType());
+      }
       if (interaction.body() != null) {
         operation.set("body", JSON.readTree(interaction.body()));
       }
@@ -259,13 +303,15 @@ class GoldenMasterRecordingTest {
         interaction.body() == null
             ? HttpRequest.BodyPublishers.noBody()
             : HttpRequest.BodyPublishers.ofString(fill(interaction.body(), params));
+    String type = interaction.contentType() == null ? "application/json" : interaction.contentType();
     HttpRequest.Builder request =
         HttpRequest.newBuilder(URI.create(base.toString()).resolve(path))
-            .header("Accept", "application/json")
+            .header("Accept", type)
             .method(interaction.method(), body);
-    if (interaction.body() != null) {
-      request.header("Content-Type", "application/json");
+    if (interaction.body() != null || interaction.contentType() != null) {
+      request.header("Content-Type", type);
     }
+    interaction.headers().forEach((name, value) -> request.header(name, fill(value, params)));
     HttpResponse<String> response;
     try (HttpClient client = HttpClient.newHttpClient()) {
       response = client.send(request.build(), HttpResponse.BodyHandlers.ofString());
@@ -283,6 +329,10 @@ class GoldenMasterRecordingTest {
               + interaction.status()
               + ": "
               + response.body());
+    }
+    if (interaction.contentType() != null) {
+      // A protobuf answer: nothing a pact reads but the status.
+      return JsonNodeFactory.instance.objectNode();
     }
     return JSON.readTree(response.body());
   }

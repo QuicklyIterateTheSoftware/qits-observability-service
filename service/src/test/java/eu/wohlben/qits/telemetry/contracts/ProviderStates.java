@@ -125,11 +125,22 @@ public class ProviderStates {
 
   // --- the states ------------------------------------------------------------------------------
 
-  /** Nothing buffered. */
+  /**
+   * The {@code Authorization} value an exporter that carries a credential sends: the runner
+   * toolkit's {@code Telemetry} posts its OTLP batches under the runner's bearer. Ingest is
+   * {@code @PermitAll}, so the value only has to be one the service accepts; under {@code %test}
+   * there is no token check, and in production the bearer the toolkit sends is a real one.
+   */
+  static final String CONTRACT_AUTHORIZATION = "Bearer qits_tok_contract-telemetry";
+
+  /**
+   * Nothing buffered. The one param, {@code authorization}, is the bearer an exporter that carries
+   * one sends to the OTLP receiver ({@code exportLogs}); the query operations ignore it.
+   */
   private Setup anEmptyTelemetryBuffer() {
     store.clear();
     clock.fixAt(NOW);
-    return new Setup(Map.of());
+    return new Setup(Map.of("authorization", CONTRACT_AUTHORIZATION));
   }
 
   /**

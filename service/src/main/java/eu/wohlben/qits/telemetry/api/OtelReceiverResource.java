@@ -42,6 +42,13 @@ import org.eclipse.microprofile.openapi.annotations.Operation;
  * <p>Hidden from the OpenAPI document: these are wire-protocol endpoints for OTel SDKs, not part of
  * the JSON API the generated Angular client consumes.
  *
+ * <p>{@link #logs} nevertheless carries the operationId {@value #EXPORT_LOGS}, because it has a
+ * consumer that pacts it (ticket qits-1163): qits-runner-toolkit's {@code Telemetry} posts OTLP log
+ * batches here for the runner daemons, and its pact names the call by that id. The golden-master
+ * recording keys operations by operationId, not by the served document, so a hidden operation is
+ * recordable once it has one; hiding it keeps it out of the public document, as before. The id is
+ * a contract: renaming it breaks the toolkit's pact.
+ *
  * <p>When qits itself runs as a managed service, every export is additionally teed byte-verbatim to
  * the parent qits via {@link OtelForwarder} — before decoding, so the forward carries the exact
  * wire bytes (still gzipped if the exporter compressed them).
@@ -67,6 +74,9 @@ import org.eclipse.microprofile.openapi.annotations.Operation;
 public class OtelReceiverResource {
 
   static final String PROTOBUF = "application/x-protobuf";
+
+  /** The logs receiver's operationId, which qits-runner-toolkit's pact names. */
+  public static final String EXPORT_LOGS = "exportLogs";
 
   /**
    * The request ceiling this process already enforces on the wire, read rather than restated: a
@@ -105,7 +115,7 @@ public class OtelReceiverResource {
 
   @POST
   @Path("/logs")
-  @Operation(hidden = true)
+  @Operation(hidden = true, operationId = EXPORT_LOGS)
   public byte[] logs(
       @HeaderParam(HttpHeaders.CONTENT_TYPE) String contentType,
       @HeaderParam("Content-Encoding") String contentEncoding,
