@@ -35,6 +35,34 @@
             "strings": [],
             "listFilteredTo": null
           }
+        },
+        {
+          "operationId": "searchTelemetryRecords",
+          "method": "POST",
+          "path": "/observability/api/telemetry/records/search",
+          "body": {
+            "subscribe": [
+              {
+                "conditions": [
+                  {
+                    "field": "service",
+                    "op": "regex",
+                    "value": "qits-.*"
+                  }
+                ]
+              }
+            ],
+            "limit": 100,
+            "source": null
+          },
+          "status": 400,
+          "file": "an-empty-telemetry-buffer/searchTelemetryRecords.json",
+          "frozen": {
+            "ids": [],
+            "instants": [],
+            "strings": [],
+            "listFilteredTo": null
+          }
         }
       ]
     },
@@ -84,7 +112,8 @@
           "method": "GET",
           "path": "/observability/api/telemetry/slow-spans",
           "query": {
-            "source": "{source}"
+            "source": "{source}",
+            "thresholdMs": "500"
           },
           "status": 200,
           "file": "telemetry-from-one-platform-service/listSlowSpans.json",

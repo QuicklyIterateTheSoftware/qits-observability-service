@@ -98,8 +98,15 @@ class GoldenMasterRecordingTest {
               API + "/traces/{traceId}?source={source}",
               null,
               200),
+          // thresholdMs as `qits observe slow-spans` always sends it (its --threshold-ms default);
+          // the route's own default is the same 500, so the answer is the one a bare read gets.
           new Interaction(
-              ONE, "listSlowSpans", "GET", API + "/slow-spans?source={source}", null, 200),
+              ONE,
+              "listSlowSpans",
+              "GET",
+              API + "/slow-spans?source={source}&thresholdMs=500",
+              null,
+              200),
           new Interaction(
               ONE, "searchTelemetryLogs", "GET", API + "/logs?source={source}", null, 200),
           new Interaction(
@@ -128,7 +135,18 @@ class GoldenMasterRecordingTest {
               null,
               200),
           new Interaction(EMPTY, "getTelemetryStore", "GET", API + "/store", null, 200),
-          new Interaction(EMPTY, "listTelemetrySources", "GET", API + "/sources", null, 200));
+          new Interaction(EMPTY, "listTelemetrySources", "GET", API + "/sources", null, 200),
+          // The refusal `qits observe query` branches on (a 400 is the caller's to fix): a filter
+          // the service cannot read — here an op it does not know, which is what a CLI newer or
+          // older than the service would send.
+          new Interaction(
+              EMPTY,
+              "searchTelemetryRecords",
+              "POST",
+              API + "/records/search",
+              "{\"subscribe\": [{\"conditions\": [{\"field\": \"service\", \"op\": \"regex\","
+                  + " \"value\": \"qits-.*\"}]}], \"limit\": 100, \"source\": null}",
+              400));
 
   private static final ObjectMapper JSON = new ObjectMapper();
 
