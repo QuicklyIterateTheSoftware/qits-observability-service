@@ -5,9 +5,28 @@
     {
       "name": "an empty telemetry buffer",
       "slug": "an-empty-telemetry-buffer",
-      "params": {},
+      "params": {
+        "authorization": "Bearer qits_tok_contract-telemetry"
+      },
       "dependsOn": [],
       "operations": [
+        {
+          "operationId": "exportLogs",
+          "method": "POST",
+          "path": "/observability/api/otel/v1/logs",
+          "headers": {
+            "Authorization": "{authorization}"
+          },
+          "contentType": "application/x-protobuf",
+          "status": 200,
+          "file": "an-empty-telemetry-buffer/exportLogs.json",
+          "frozen": {
+            "ids": [],
+            "instants": [],
+            "strings": [],
+            "listFilteredTo": null
+          }
+        },
         {
           "operationId": "getTelemetryStore",
           "method": "GET",
