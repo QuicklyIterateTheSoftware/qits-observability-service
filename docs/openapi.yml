@@ -390,7 +390,7 @@ components:
   securitySchemes:
     SecurityScheme:
       type: openIdConnect
-      openIdConnectUrl: http://dev-qits-platform-idp:8080/idp/.well-known/openid-configuration
+      openIdConnectUrl: http://dev-qits-idp:8080/idp/.well-known/openid-configuration
       description: Authentication
 paths:
   /observability/api/telemetry/errors:
@@ -782,4 +782,4 @@ paths:
         - qits:agent
 info:
   title: qits-observability API
-  version: 2026.930.90310
+  version: 2026.1018.155850
