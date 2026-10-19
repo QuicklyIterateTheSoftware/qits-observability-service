@@ -75,33 +75,16 @@ class ConsumerPactVerificationTest {
     }
   }
 
-  private static final String EXPONENT_NUMBER =
-      "the row binds a gauge's double value (the golden master's 1.5E8, jvm.memory.used) with"
-          + " pact-jvm's 'number' matcher, and pact-jvm 4.6.21's matchNumber rejects every"
-          + " exponent-form JSON number: BigDecimal(\"1.5E8\") has scale -7, so it is neither its"
-          + " integer nor its decimal ('Expected 1.5E8 (Decimal) to be a number'). The provider's"
-          + " honest answer is the double as Jackson writes it; the fix is a matcher that accepts it"
-          + " in the consumer's row builder (qits-pact-consumer), as a new pact version (ticket"
-          + " qits-1149)";
-
   /**
    * The pinned interactions that are wrong, each by the version of the consumer's jar: the entry
    * is for that version alone, so the bump carrying the consumer's fix verifies the interaction
    * for real, and a bump that does not fix it goes red here. Each is skipped with its reason —
    * never answered by bending the provider to it (the pattern of qits-maintenance-service's).
+   * None at present: qits-platform-access-cli 2026.1019.65035's metrics and query rows, which
+   * bound exponent-form doubles with a matcher that rejects them, were fixed in 2026.1019.92700,
+   * the version pinned.
    */
-  static final List<KnownWrong> KNOWN_WRONG =
-      List.of(
-          new KnownWrong(
-              "qits-platform-access-cli",
-              "2026.1019.65035",
-              "qits observe metrics: listTelemetryMetrics",
-              EXPONENT_NUMBER),
-          new KnownWrong(
-              "qits-platform-access-cli",
-              "2026.1019.65035",
-              "qits observe query: searchTelemetryRecords",
-              EXPONENT_NUMBER));
+  static final List<KnownWrong> KNOWN_WRONG = List.of();
 
   @Inject ProviderStates states;
   @Inject ContractClock clock;
