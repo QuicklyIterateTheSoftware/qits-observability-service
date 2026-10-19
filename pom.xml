@@ -79,7 +79,7 @@
         <!-- The consumer half of the contracts (ticket qits-1149): qits-pact-consumer reads the idp's
              golden masters and writes pacts/qits-observability-service_qits-idp-service.json.
              Exact pins: a newer recording is a deliberate bump. -->
-        <qits.pact-consumer.version>2026.1018.164604</qits.pact-consumer.version>
+        <qits.pact-consumer.version>2026.1019.82625</qits.pact-consumer.version>
         <qits.idp-golden-masters.version>2026.1018.175524</qits.idp-golden-masters.version>
         <!-- THE PROVIDER HALF (ticket qits-1163): the first published
              `eu.wohlben.qits:<consumer>-pacts-qits-observability-service` jar,
