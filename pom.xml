@@ -80,7 +80,7 @@
              golden masters and writes pacts/qits-observability-service_qits-idp-service.json.
              Exact pins: a newer recording is a deliberate bump. -->
         <qits.pact-consumer.version>2026.1019.82625</qits.pact-consumer.version>
-        <qits.idp-golden-masters.version>2026.1018.175524</qits.idp-golden-masters.version>
+        <qits.idp-golden-masters.version>2026.1019.100619</qits.idp-golden-masters.version>
         <!-- THE PROVIDER HALF (ticket qits-1163): the first published
              `eu.wohlben.qits:<consumer>-pacts-qits-observability-service` jar,
              `pacts/qits-projects-desk-runner-daemon_qits-runner-javalib_qits-observability-service.json`
@@ -94,7 +94,7 @@
              `Telemetry` (ticket qits-1163): `pacts/qits-workspaces-runner-daemon_qits-runner-javalib_qits-observability-service.json`
              — one interaction, "the log export interval: exportLogs", state "an empty telemetry
              buffer", same shape as the desk runner daemon's. -->
-        <qits.platform-access-cli-pacts-qits-observability-service.version>2026.1019.65035</qits.platform-access-cli-pacts-qits-observability-service.version>
+        <qits.platform-access-cli-pacts-qits-observability-service.version>2026.1019.92700</qits.platform-access-cli-pacts-qits-observability-service.version>
         <qits.projects-desk-runner-daemon-pacts-qits-observability-service.version>2026.1019.82130</qits.projects-desk-runner-daemon-pacts-qits-observability-service.version>
         <qits.workspaces-runner-daemon-pacts-qits-observability-service.version>2026.1019.75736</qits.workspaces-runner-daemon-pacts-qits-observability-service.version>
         <pact.version>4.6.21</pact.version>
