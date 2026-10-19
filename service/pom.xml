@@ -172,6 +172,17 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <!-- ConsumerPactVerificationTest: the workspaces runner daemon's pact against this
+                 provider (ticket qits-1163), made through qits-runner-toolkit's Telemetry — one
+                 interaction, "the log export interval: exportLogs", state "an empty telemetry
+                 buffer". The jar carries
+                 pacts/qits-workspaces-runner-daemon_qits-runner-javalib_qits-observability-service.json,
+                 which ClasspathPactLoader reads off the test classpath. -->
+            <groupId>${project.groupId}</groupId>
+            <artifactId>qits-workspaces-runner-daemon-pacts-qits-observability-service</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <!-- The user-story framework: the story catalogue under src/test/java/…/telemetry/stories
                  (plus TelemetryBootstrapIT, which owns the boot) is written as @UserStory methods,
                  so the packaged round-trip proof doubles as documentation — steps, notes and an
