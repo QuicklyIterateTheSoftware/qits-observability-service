@@ -95,7 +95,7 @@
              — one interaction, "the log export interval: exportLogs", state "an empty telemetry
              buffer", same shape as the desk runner daemon's. -->
         <qits.platform-access-cli-pacts-qits-observability-service.version>2026.1019.65035</qits.platform-access-cli-pacts-qits-observability-service.version>
-        <qits.projects-desk-runner-daemon-pacts-qits-observability-service.version>2026.1018.211743</qits.projects-desk-runner-daemon-pacts-qits-observability-service.version>
+        <qits.projects-desk-runner-daemon-pacts-qits-observability-service.version>2026.1019.82130</qits.projects-desk-runner-daemon-pacts-qits-observability-service.version>
         <qits.workspaces-runner-daemon-pacts-qits-observability-service.version>2026.1019.75736</qits.workspaces-runner-daemon-pacts-qits-observability-service.version>
         <pact.version>4.6.21</pact.version>
         <qits.maven.repository.url>https://registry.qits.wohlben.eu/artifacts/maven/maven</qits.maven.repository.url>
