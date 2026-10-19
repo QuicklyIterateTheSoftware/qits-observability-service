@@ -8,7 +8,6 @@ import au.com.dius.pact.core.model.ProviderState;
 import au.com.dius.pact.provider.junit5.HttpTestTarget;
 import au.com.dius.pact.provider.junit5.PactVerificationContext;
 import au.com.dius.pact.provider.junit5.PactVerificationInvocationContextProvider;
-import au.com.dius.pact.provider.junitsupport.IgnoreNoPactsToVerify;
 import au.com.dius.pact.provider.junitsupport.Provider;
 import au.com.dius.pact.provider.junitsupport.State;
 import au.com.dius.pact.provider.junitsupport.loader.PactSource;
@@ -32,9 +31,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
  * repo pins that jar as a test dependency, and qits-maintenance bumps the pin when the consumer
  * releases a changed pact. {@link ClasspathPactLoader} finds them all.
  *
- * <p><b>No consumer pins a pact yet</b>, so {@code @IgnoreNoPactsToVerify} lets an empty classpath
- * pass and the loader logs that nothing was verified. When the first consumer's pact jar is pinned,
- * drop the annotation and set {@link ClasspathPactLoader#REQUIRED} to true.
+ * <p><b>The first consumer pact is pinned</b> (ticket qits-1163): qits-projects-desk-runner-daemon's
+ * call through qits-runner-toolkit's {@code Telemetry}, {@code
+ * pacts/qits-projects-desk-runner-daemon_qits-runner-javalib_qits-observability-service.json} — one
+ * interaction, "the log export interval: exportLogs", state "an empty telemetry buffer". So this
+ * class carries no {@code @IgnoreNoPactsToVerify} and {@link ClasspathPactLoader#REQUIRED} is true:
+ * an empty classpath is now an error, not a silent pass.
  *
  * <p>Each interaction runs against this {@code @QuarkusTest} application over real HTTP, as the
  * {@code %test} dev user. Every {@code @State} method delegates to {@link ProviderStates}; {@link
@@ -44,7 +46,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 @QuarkusTest
 @Provider(ConsumerPactVerificationTest.PROVIDER)
 @PactSource(ClasspathPactLoader.class)
-@IgnoreNoPactsToVerify
 class ConsumerPactVerificationTest {
 
   /** The provider's name in a pact: the repository name, not the application name. */
@@ -69,9 +70,6 @@ class ConsumerPactVerificationTest {
 
   @BeforeEach
   void target(PactVerificationContext context, Pact pact, Interaction interaction) {
-    if (context == null) {
-      return; // no pact to verify: @IgnoreNoPactsToVerify's single empty run
-    }
     String consumer = pact.getConsumer().getName();
     for (ProviderState state : interaction.getProviderStates()) {
       if (!states.names().contains(state.getName())) {
@@ -104,9 +102,7 @@ class ConsumerPactVerificationTest {
   @TestTemplate
   @ExtendWith(PactVerificationInvocationContextProvider.class)
   void consumerPactHolds(PactVerificationContext context) {
-    if (context != null) {
-      context.verifyInteraction();
-    }
+    context.verifyInteraction();
   }
 
   // --- the states: each one line into the registry -------------------------------------------

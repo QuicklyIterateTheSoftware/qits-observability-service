@@ -81,6 +81,14 @@
              Exact pins: a newer recording is a deliberate bump. -->
         <qits.pact-consumer.version>2026.1018.164604</qits.pact-consumer.version>
         <qits.idp-golden-masters.version>2026.1018.175524</qits.idp-golden-masters.version>
+        <!-- THE PROVIDER HALF (ticket qits-1163): the first published
+             `eu.wohlben.qits:<consumer>-pacts-qits-observability-service` jar,
+             `pacts/qits-projects-desk-runner-daemon_qits-runner-javalib_qits-observability-service.json`
+             — the desk runner daemon's call through qits-runner-toolkit's `Telemetry`, against the
+             OTLP logs receiver's exportLogs operationId. ConsumerPactVerificationTest verifies it off
+             the test classpath; qits-maintenance bumps the pin when the daemon publishes a changed
+             pact. -->
+        <qits.projects-desk-runner-daemon-pacts-qits-observability-service.version>2026.1018.211743</qits.projects-desk-runner-daemon-pacts-qits-observability-service.version>
         <pact.version>4.6.21</pact.version>
         <qits.maven.repository.url>https://registry.qits.wohlben.eu/artifacts/maven/maven</qits.maven.repository.url>
 
@@ -173,6 +181,16 @@
                 <groupId>${project.groupId}</groupId>
                 <artifactId>qits-idp-golden-masters</artifactId>
                 <version>${qits.idp-golden-masters.version}</version>
+            </dependency>
+            <dependency>
+                <!-- The consumer pact ConsumerPactVerificationTest verifies: it carries
+                     pacts/qits-projects-desk-runner-daemon_qits-runner-javalib_qits-observability-service.json,
+                     and the test reads it off the test classpath. The pinned jar IS the source of
+                     the pact; nothing is copied into this tree. Test scope at every declaration
+                     site. -->
+                <groupId>${project.groupId}</groupId>
+                <artifactId>qits-projects-desk-runner-daemon-pacts-qits-observability-service</artifactId>
+                <version>${qits.projects-desk-runner-daemon-pacts-qits-observability-service.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
