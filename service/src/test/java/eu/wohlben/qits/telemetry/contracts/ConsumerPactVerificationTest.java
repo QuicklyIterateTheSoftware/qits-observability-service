@@ -18,6 +18,7 @@ import java.net.URL;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,10 +32,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
  * repo pins that jar as a test dependency, and qits-maintenance bumps the pin when the consumer
  * releases a changed pact. {@link ClasspathPactLoader} finds them all.
  *
- * <p><b>The first consumer pact is pinned</b> (ticket qits-1163): qits-projects-desk-runner-daemon's
- * call through qits-runner-toolkit's {@code Telemetry}, {@code
+ * <p><b>Two consumer pacts are pinned.</b> qits-projects-desk-runner-daemon's call through
+ * qits-runner-toolkit's {@code Telemetry} (ticket qits-1163), {@code
  * pacts/qits-projects-desk-runner-daemon_qits-runner-javalib_qits-observability-service.json} — one
- * interaction, "the log export interval: exportLogs", state "an empty telemetry buffer". So this
+ * interaction, "the log export interval: exportLogs", state "an empty telemetry buffer"; and
+ * qits-platform-access-cli's {@code qits observe} subcommands (ticket qits-1149), {@code
+ * pacts/qits-platform-access-cli_qits-observability-service.json} — errors, metrics, query and
+ * sources. So this
  * class carries no {@code @IgnoreNoPactsToVerify} and {@link ClasspathPactLoader#REQUIRED} is true:
  * an empty classpath is now an error, not a silent pass.
  *
@@ -42,6 +46,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
  * {@code %test} dev user. Every {@code @State} method delegates to {@link ProviderStates}; {@link
  * #target} fails an unknown state, and an interaction without {@code comments.references.qits-call}
  * or {@code qits-trigger}.
+ *
+ * <p><b>A pinned pact that is wrong is named in {@link #KNOWN_WRONG}, by its jar's version</b>, and
+ * its interaction is reported as skipped with the reason.
  */
 @QuarkusTest
 @Provider(ConsumerPactVerificationTest.PROVIDER)
@@ -55,6 +62,44 @@ class ConsumerPactVerificationTest {
     // pact-jvm reports usage metrics over the network unless told not to; a test never should.
     System.setProperty("pact_do_not_track", "true");
   }
+
+  /** A pinned pact interaction this provider cannot honour, and why: the consumer must fix it. */
+  record KnownWrong(String consumer, String version, String description, String reason) {
+
+    boolean names(Pact pact, Interaction interaction) {
+      return consumer.equals(pact.getConsumer().getName())
+          && description.equals(interaction.getDescription())
+          && String.valueOf(pact.getSource()).contains("/" + version + "/");
+    }
+  }
+
+  private static final String EXPONENT_NUMBER =
+      "the row binds a gauge's double value (the golden master's 1.5E8, jvm.memory.used) with"
+          + " pact-jvm's 'number' matcher, and pact-jvm 4.6.21's matchNumber rejects every"
+          + " exponent-form JSON number: BigDecimal(\"1.5E8\") has scale -7, so it is neither its"
+          + " integer nor its decimal ('Expected 1.5E8 (Decimal) to be a number'). The provider's"
+          + " honest answer is the double as Jackson writes it; the fix is a matcher that accepts it"
+          + " in the consumer's row builder (qits-pact-consumer), as a new pact version (ticket"
+          + " qits-1149)";
+
+  /**
+   * The pinned interactions that are wrong, each by the version of the consumer's jar: the entry
+   * is for that version alone, so the bump carrying the consumer's fix verifies the interaction
+   * for real, and a bump that does not fix it goes red here. Each is skipped with its reason —
+   * never answered by bending the provider to it (the pattern of qits-maintenance-service's).
+   */
+  static final List<KnownWrong> KNOWN_WRONG =
+      List.of(
+          new KnownWrong(
+              "qits-platform-access-cli",
+              "2026.1019.65035",
+              "qits observe metrics: listTelemetryMetrics",
+              EXPONENT_NUMBER),
+          new KnownWrong(
+              "qits-platform-access-cli",
+              "2026.1019.65035",
+              "qits observe query: searchTelemetryRecords",
+              EXPONENT_NUMBER));
 
   @Inject ProviderStates states;
   @Inject ContractClock clock;
@@ -94,6 +139,13 @@ class ConsumerPactVerificationTest {
                 + interaction.getDescription()
                 + "' carries no comments.references."
                 + key);
+      }
+    }
+    for (KnownWrong wrong : KNOWN_WRONG) {
+      if (wrong.names(pact, interaction)) {
+        Assumptions.abort(
+            consumer + " " + wrong.version() + " '" + interaction.getDescription() + "': "
+                + wrong.reason());
       }
     }
     context.setTarget(new HttpTestTarget(base.getHost(), base.getPort()));

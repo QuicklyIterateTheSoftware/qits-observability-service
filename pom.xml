@@ -88,6 +88,9 @@
              OTLP logs receiver's exportLogs operationId. ConsumerPactVerificationTest verifies it off
              the test classpath; qits-maintenance bumps the pin when the daemon publishes a changed
              pact. -->
+        <!-- qits-platform-access-cli's `qits observe` (ticket qits-1149):
+             `pacts/qits-platform-access-cli_qits-observability-service.json`. -->
+        <qits.platform-access-cli-pacts-qits-observability-service.version>2026.1019.65035</qits.platform-access-cli-pacts-qits-observability-service.version>
         <qits.projects-desk-runner-daemon-pacts-qits-observability-service.version>2026.1018.211743</qits.projects-desk-runner-daemon-pacts-qits-observability-service.version>
         <pact.version>4.6.21</pact.version>
         <qits.maven.repository.url>https://registry.qits.wohlben.eu/artifacts/maven/maven</qits.maven.repository.url>
@@ -191,6 +194,13 @@
                 <groupId>${project.groupId}</groupId>
                 <artifactId>qits-projects-desk-runner-daemon-pacts-qits-observability-service</artifactId>
                 <version>${qits.projects-desk-runner-daemon-pacts-qits-observability-service.version}</version>
+            </dependency>
+            <dependency>
+                <!-- Test scope at every declaration site: qits-platform-access-cli's pact,
+                     verified by ConsumerPactVerificationTest. -->
+                <groupId>${project.groupId}</groupId>
+                <artifactId>qits-platform-access-cli-pacts-qits-observability-service</artifactId>
+                <version>${qits.platform-access-cli-pacts-qits-observability-service.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

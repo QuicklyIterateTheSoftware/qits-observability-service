@@ -165,6 +165,13 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <!-- ConsumerPactVerificationTest: qits-platform-access-cli's `qits observe` errors,
+                 metrics, query and sources (ticket qits-1149); the jar carries pacts/qits-platform-access-cli_qits-observability-service.json. -->
+            <groupId>${project.groupId}</groupId>
+            <artifactId>qits-platform-access-cli-pacts-qits-observability-service</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <!-- The user-story framework: the story catalogue under src/test/java/…/telemetry/stories
                  (plus TelemetryBootstrapIT, which owns the boot) is written as @UserStory methods,
                  so the packaged round-trip proof doubles as documentation — steps, notes and an
