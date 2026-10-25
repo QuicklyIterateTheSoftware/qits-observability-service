@@ -90,16 +90,14 @@
              pact. -->
         <!-- qits-platform-access-cli's `qits observe` (ticket qits-1149):
              `pacts/qits-platform-access-cli_qits-observability-service.json`. -->
-        <!-- The system runner daemon's and the workspaces runner daemon's own calls through the
-             same qits-runner-toolkit `Telemetry` (ticket qits-1163):
-             `pacts/qits-system-runner-daemon_qits-runner-javalib_qits-observability-service.json` and
-             `pacts/qits-workspaces-runner-daemon_qits-runner-javalib_qits-observability-service.json`
-             — one interaction each, "the log export interval: exportLogs", state "an empty
+        <!-- The system runner daemon's own calls through the same qits-runner-toolkit `Telemetry`
+             (ticket qits-1163):
+             `pacts/qits-system-runner-daemon_qits-runner-javalib_qits-observability-service.json`
+             — one interaction, "the log export interval: exportLogs", state "an empty
              telemetry buffer", same shape as the desk runner daemon's. -->
         <qits.platform-access-cli-pacts-qits-observability-service.version>2026.1019.92700</qits.platform-access-cli-pacts-qits-observability-service.version>
         <qits.projects-desk-runner-daemon-pacts-qits-observability-service.version>2026.1025.4118</qits.projects-desk-runner-daemon-pacts-qits-observability-service.version>
         <qits.system-runner-daemon-pacts-qits-observability-service.version>2026.1023.84005</qits.system-runner-daemon-pacts-qits-observability-service.version>
-        <qits.workspaces-runner-daemon-pacts-qits-observability-service.version>2026.1022.101507</qits.workspaces-runner-daemon-pacts-qits-observability-service.version>
         <pact.version>4.6.21</pact.version>
         <qits.maven.repository.url>https://registry.qits.wohlben.eu/artifacts/maven/maven</qits.maven.repository.url>
 
@@ -219,16 +217,6 @@
                 <groupId>${project.groupId}</groupId>
                 <artifactId>qits-system-runner-daemon-pacts-qits-observability-service</artifactId>
                 <version>${qits.system-runner-daemon-pacts-qits-observability-service.version}</version>
-            </dependency>
-            <dependency>
-                <!-- The consumer pact ConsumerPactVerificationTest verifies: it carries
-                     pacts/qits-workspaces-runner-daemon_qits-runner-javalib_qits-observability-service.json,
-                     and the test reads it off the test classpath. The pinned jar IS the source of
-                     the pact; nothing is copied into this tree. Test scope at every declaration
-                     site. -->
-                <groupId>${project.groupId}</groupId>
-                <artifactId>qits-workspaces-runner-daemon-pacts-qits-observability-service</artifactId>
-                <version>${qits.workspaces-runner-daemon-pacts-qits-observability-service.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

@@ -32,14 +32,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
  * repo pins that jar as a test dependency, and qits-maintenance bumps the pin when the consumer
  * releases a changed pact. {@link ClasspathPactLoader} finds them all.
  *
- * <p><b>Four consumer pacts are pinned.</b> qits-projects-desk-runner-daemon's call through
+ * <p><b>Three consumer pacts are pinned.</b> qits-projects-desk-runner-daemon's call through
  * qits-runner-toolkit's {@code Telemetry} (ticket qits-1163), {@code
  * pacts/qits-projects-desk-runner-daemon_qits-runner-javalib_qits-observability-service.json} — one
  * interaction, "the log export interval: exportLogs", state "an empty telemetry buffer";
- * qits-workspaces-runner-daemon's call through the same {@code Telemetry} (ticket qits-1163),
- * {@code pacts/qits-workspaces-runner-daemon_qits-runner-javalib_qits-observability-service.json} —
- * the same one interaction and state; qits-system-runner-daemon's call through the same {@code
- * Telemetry} (ticket qits-1163), {@code
+ * qits-system-runner-daemon's call through the same {@code Telemetry} (ticket qits-1163), {@code
  * pacts/qits-system-runner-daemon_qits-runner-javalib_qits-observability-service.json} — the same
  * one interaction and state; and qits-platform-access-cli's {@code qits observe}
  * subcommands (ticket qits-1149), {@code pacts/qits-platform-access-cli_qits-observability-service.json}
