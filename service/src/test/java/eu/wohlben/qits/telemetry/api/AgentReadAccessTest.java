@@ -26,6 +26,10 @@ class AgentReadAccessTest {
   private static final Map<String, String> ADMIN_AGENT =
       Map.of("X-Qits-User", "dyn-admin-workspace-agent", "X-Qits-Roles", "qits:admin-agent");
 
+  /** The delivery desk's own role (epic qits-1621): admitted wherever {@code qits:admin-agent} is. */
+  private static final Map<String, String> DESK_ADMIN =
+      Map.of("X-Qits-User", "dyn-desk-admin", "X-Qits-Roles", "qits:desk-admin");
+
   private static final Map<String, String> READER =
       Map.of("X-Qits-User", "dyn-workspace-agent", "X-Qits-Roles", "qits:reader");
 
@@ -76,6 +80,21 @@ class AgentReadAccessTest {
   @Test
   void anAdminAgentOpensTheLiveStream() {
     assertEquals(101, StreamClient.refusal(endpoint, ADMIN_AGENT));
+  }
+
+  /** {@code qits:desk-admin} (epic qits-1621): admitted wherever {@code qits:admin-agent} is. */
+  @Test
+  void aDeskAdminReadsTheTelemetryApi() {
+    given()
+        .headers(DESK_ADMIN)
+        .get("/observability/api/telemetry/store")
+        .then()
+        .statusCode(200);
+  }
+
+  @Test
+  void aDeskAdminOpensTheLiveStream() {
+    assertEquals(101, StreamClient.refusal(endpoint, DESK_ADMIN));
   }
 
   @Test

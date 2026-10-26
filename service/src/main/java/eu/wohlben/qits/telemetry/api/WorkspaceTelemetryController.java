@@ -67,7 +67,12 @@ import org.eclipse.microprofile.openapi.annotations.media.Schema;
  */
 @Path("/telemetry")
 @Produces(MediaType.APPLICATION_JSON)
-@jakarta.annotation.security.RolesAllowed({"qits:admin", "qits:admin-agent", "qits:agent"})
+@jakarta.annotation.security.RolesAllowed({
+  "qits:admin",
+  "qits:admin-agent",
+  "qits:desk-admin",
+  "qits:agent"
+})
 public class WorkspaceTelemetryController {
 
   /** What a list answers with when the caller does not choose. */

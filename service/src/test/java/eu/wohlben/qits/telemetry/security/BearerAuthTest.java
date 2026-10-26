@@ -107,6 +107,17 @@ class BearerAuthTest {
   }
 
   @Test
+  void aDeskAdminTokenReadsTheQueryApi() {
+    // qits:desk-admin (epic qits-1621): admitted wherever qits:admin-agent is.
+    given()
+        .header("Authorization", bearer(cliToken("qits:desk-admin")))
+        .when()
+        .get(STORE)
+        .then()
+        .statusCode(200);
+  }
+
+  @Test
   void aPeerServicesMachineTokenIsAcceptedToo() {
     // qits-platform-idp stamps `qits-platform` on every token it mints, a machine token included, so
     // a peer service reaches this one and its roles decide from there.

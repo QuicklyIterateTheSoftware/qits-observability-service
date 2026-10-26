@@ -442,6 +442,7 @@ paths:
       - SecurityScheme:
         - qits:admin
         - qits:admin-agent
+        - qits:desk-admin
         - qits:agent
   /observability/api/telemetry/logs:
     get:
@@ -500,6 +501,7 @@ paths:
       - SecurityScheme:
         - qits:admin
         - qits:admin-agent
+        - qits:desk-admin
         - qits:agent
   /observability/api/telemetry/metrics:
     get:
@@ -543,6 +545,7 @@ paths:
       - SecurityScheme:
         - qits:admin
         - qits:admin-agent
+        - qits:desk-admin
         - qits:agent
   /observability/api/telemetry/records/search:
     post:
@@ -573,6 +576,7 @@ paths:
       - SecurityScheme:
         - qits:admin
         - qits:admin-agent
+        - qits:desk-admin
         - qits:agent
   /observability/api/telemetry/slow-spans:
     get:
@@ -634,6 +638,7 @@ paths:
       - SecurityScheme:
         - qits:admin
         - qits:admin-agent
+        - qits:desk-admin
         - qits:agent
   /observability/api/telemetry/sources:
     get:
@@ -656,6 +661,7 @@ paths:
       - SecurityScheme:
         - qits:admin
         - qits:admin-agent
+        - qits:desk-admin
         - qits:agent
   /observability/api/telemetry/store:
     get:
@@ -678,6 +684,7 @@ paths:
       - SecurityScheme:
         - qits:admin
         - qits:admin-agent
+        - qits:desk-admin
         - qits:agent
   /observability/api/telemetry/traces:
     get:
@@ -739,6 +746,7 @@ paths:
       - SecurityScheme:
         - qits:admin
         - qits:admin-agent
+        - qits:desk-admin
         - qits:agent
   /observability/api/telemetry/traces/{traceId}:
     get:
@@ -779,6 +787,7 @@ paths:
       - SecurityScheme:
         - qits:admin
         - qits:admin-agent
+        - qits:desk-admin
         - qits:agent
 info:
   title: qits-observability API
