@@ -210,6 +210,14 @@
             <artifactId>qits-userflows</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <!-- The platform's shared ArchUnit rules: DeskAdminParityRules checks that every
+                 route admitting qits:admin-agent also admits qits:desk-admin (epic qits-1621).
+                 Test scope at every declaration site, like qits-userflows above. -->
+            <groupId>${project.groupId}</groupId>
+            <artifactId>qits-arch-rules</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
