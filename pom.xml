@@ -75,7 +75,7 @@
              carries a hand-copied StoryNetworkFilter.
              Released out of libs/qits-userflows into the platform's own Maven repository, which is
              the same place qits-auth-core above comes from. -->
-        <qits.userflows.version>2026.1002.72731</qits.userflows.version>
+        <qits.userflows.version>2026.1028.231715</qits.userflows.version>
         <!-- The platform's shared ArchUnit rules (test scope), carrying DeskAdminParityRules —
              epic qits-1621's check that every route admitting qits:admin-agent also admits
              qits:desk-admin. This context did not depend on qits-arch-rules before. -->
