@@ -79,7 +79,7 @@
         <!-- The platform's shared ArchUnit rules (test scope), carrying DeskAdminParityRules —
              epic qits-1621's check that every route admitting qits:admin-agent also admits
              qits:desk-admin. This context did not depend on qits-arch-rules before. -->
-        <qits.arch-rules.version>2026.1026.133840</qits.arch-rules.version>
+        <qits.arch-rules.version>2026.1030.30851</qits.arch-rules.version>
         <!-- The consumer half of the contracts (ticket qits-1149): qits-pact-consumer reads the idp's
              golden masters and writes pacts/qits-observability-service_qits-idp-service.json.
              Exact pins: a newer recording is a deliberate bump. -->
