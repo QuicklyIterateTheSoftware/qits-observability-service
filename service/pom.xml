@@ -265,6 +265,15 @@
                                 <native.image.path>${project.build.directory}/qits-observability</native.image.path>
                                 <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
                             </systemPropertyVariables>
+                            <!-- QITS_DOMAIN carries no default in the shipped properties (qits-1406:
+                                 quarkus.oidc.auth-server-url is https://idp.qits.${QITS_DOMAIN}/idp),
+                                 and the launched packaged artifact runs the prod profile and reads
+                                 src/main/resources only. The deployer states it on every container;
+                                 here the forked JVM states it, and the launch inherits it. Not the
+                                 live domain: no IT may reach the real idp. -->
+                            <environmentVariables>
+                                <QITS_DOMAIN>test.wohlben.eu</QITS_DOMAIN>
+                            </environmentVariables>
                         </configuration>
                     </execution>
                 </executions>
