@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * own {@code /idp/jwks}) and {@code GET /idp/jwks} with the suite's verification key under {@link
  * BearerTokens#KEY_ID}, and counts the key fetches. Loopback only, on an ephemeral port.
  *
- * <p>It moves only {@code auth-server-url} (and turns the tenant on, with the dev user blanked). So
+ * <p>It moves only {@code auth-server-url} (and turns the tenant on). So
  * the key path under test is the one that ships: discovery on, the issuer from discovery, the
  * shipped audience, and keys fetched by {@code kid} when a token needs one.
  */
@@ -75,7 +75,6 @@ public class JwksStub implements QuarkusTestResourceLifecycleManager {
     server.start();
     return Map.of(
         "quarkus.oidc.tenant-enabled", "true",
-        "qits.auth.forward.dev-user", "",
         "quarkus.oidc.auth-server-url", idp);
   }
 

@@ -28,7 +28,7 @@ public final class StreamClient implements AutoCloseable {
   private final WebSocket socket;
   private final BlockingQueue<String> received = new LinkedBlockingQueue<>();
 
-  /** Dial with no headers: in the default test profile the dev user is the identity. */
+  /** Dial with no headers: the identity is the test's own {@code @TestSecurity}, if any. */
   public static StreamClient dial(URI endpoint) throws Exception {
     return dial(endpoint, Map.of());
   }

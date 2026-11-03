@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.node.TextNode;
 import eu.wohlben.qits.telemetry.api.OtelReceiverResource;
 import io.quarkus.test.common.http.TestHTTPResource;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.security.TestSecurity;
 import jakarta.inject.Inject;
 import java.io.IOException;
 import java.net.URI;
@@ -66,6 +67,7 @@ import org.junit.jupiter.api.Test;
  * GoldenFiles}.
  */
 @QuarkusTest
+@TestSecurity(user = "operator", roles = "qits:admin")
 class GoldenMasterRecordingTest {
 
   static final int FORMAT_VERSION = 1;

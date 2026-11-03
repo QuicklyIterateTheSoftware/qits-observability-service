@@ -16,7 +16,7 @@ import org.junit.jupiter.api.TestMethodOrder;
  * The shipped key path, end to end, with {@link JwksStub} in place of the idp: discovery on, the
  * issuer from discovery, the shipped audience, and {@code jwks.resolve-early=false}.
  *
- * <p>What it pins: nothing but a bearer fetches keys. Boot, header traffic, ingest and 401
+ * <p>What it pins: nothing but a bearer fetches keys. Boot, ingest and 401
  * challenges make no JWKS fetch. The first bearer fetches the key by its {@code kid}; later bearers
  * use the cache. A token from any issuer but the published one is refused.
  *
@@ -31,14 +31,7 @@ class BearerJwksTest {
 
   @Test
   @Order(1)
-  void bootHeaderTrafficIngestAndRefusalsNeverFetchTheKeys() {
-    given()
-        .header("X-Qits-User", "alice")
-        .header("X-Qits-Roles", "qits:admin")
-        .when()
-        .get(STORE)
-        .then()
-        .statusCode(200);
+  void bootIngestAndRefusalsNeverFetchTheKeys() {
     given()
         .contentType("application/x-protobuf")
         .body(new byte[0])

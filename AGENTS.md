@@ -97,7 +97,8 @@ workspace's agent (qits-628 follow-up) — and `qits:desk-admin` — the deliver
 (epic qits-1621) — are both admitted everywhere `qits:admin` is:
 
 - **Forward-auth headers** — `X-Qits-User` / `X-Qits-Roles`, read by qits-auth-core's
-  `ForwardAuthMechanism`. A browser session gets them from the edge.
+  `ForwardAuthMechanism`. A browser session gets them from the edge. This way in goes with
+  qits-1338 (epic qits-543), and the test suite already runs without it.
 - **A person's bearer token** — `qits observe` calls through the edge with the person's token from
   qits-platform-idp. The edge removes every `X-Qits-*` header from a request that carries a Bearer
   or Basic credential, so headers cannot carry that person. `quarkus-oidc` checks the token
@@ -121,10 +122,20 @@ of the form `if (identity.isAnonymous()) deny` would look like a security contro
 nothing, because reaching this service at all already implies you are inside the trusted network.
 
 **`X-Qits-*` is the gateway's reserved namespace, stripped from every inbound request
-unconditionally**, so a client cannot forge one. That strip rule is the entire reason the header can
-be trusted here — and it is why `ForwardAuthTest` sets the real header rather than reaching for
-`@TestSecurity`. The header *is* the contract under test; a test that mocked the identity instead
-would pass just as happily against a mechanism that never reads it.
+unconditionally**, so a client cannot forge one.
+
+**The suite does not use forward-auth (epic qits-543, qits-1367).** A test names its identity with
+`@TestSecurity` and the roles it means, or carries a real bearer from `BearerTokens` where token
+validation is the point. The test config blanks the `%test` dev user and renames the forward headers
+(`%test.qits.auth.forward.*` in `src/test/resources/application.properties`, which go with
+qits-1338), so a header-less request is anonymous and a stray `X-Qits-User` authenticates nothing.
+`BearerAuthTest.forwardedIdentityHeadersAreIgnored` is the one test that sends the headers, to prove
+exactly that.
+
+**Dev mode needs a bearer.** The `%dev` dev user goes with qits-1338, and `%dev` keeps the OIDC tenant
+off, so a guarded route in `quarkus:dev` answers 401 until the tenant is pointed at an idp. Read it
+with a person's token, for example `curl -H "Authorization: Bearer $(qits-token qits-platform)" ...`,
+or through the `qits` CLI (`qits observe ...`) against a deployed instance.
 
 None of this reaches ingest. `/observability/api/otel/v1/*` is allow-listed unauthenticated because
 its callers are exporter SDKs inside workspace containers, not sessions — they carry no identity and
@@ -230,10 +241,10 @@ Playwright never launches anything and no browser is downloaded.
 ### What only a launched process can say
 
 - **The two doors are different.** `OtelReceiverResource` is `@PermitAll` and
-  `WorkspaceTelemetryController` is `@RolesAllowed({"qits:admin", "qits:agent"})`, and under `@QuarkusTest`
-  qits-auth-core's `%test` dev-user hands every request `qits:admin` before either annotation is
-  consulted. A `NORMAL` launch has no dev-user, so 401 / 403 / 200 on one port is a fact no
-  `@QuarkusTest` in this repository can state.
+  `WorkspaceTelemetryController` is `@RolesAllowed({"qits:admin", "qits:agent"})`, and a
+  `@QuarkusTest` sees whatever its `@TestSecurity` identity is granted. A `NORMAL` launch has no
+  test identity — a reader carries a bearer (`StoryTarget.operator()`) or nothing — so 401 / 403 /
+  200 on one port is stated against the shipped security configuration.
 - **The tee is real, and it is not in the exporter's way.** `OtelForwarder` builds its `HttpClient`
   in `@PostConstruct` precisely so the native image will have it, and the forward is `sendAsync`.
   "Ingest did not wait for the parent" is only a *measurement* against a far side that is
@@ -342,8 +353,8 @@ verify step runs LAST, so by the time a story can fail the build step has alread
 `OtelReceiverIT` reads the query surface with **no identity**, and that surface became
 `@RolesAllowed("qits:admin")` in the 2026-08-15 "protect observability APIs" sweep without the IT
 moving with it. `skipITs` has hidden it ever since — nothing has run it — so expect 401s the first
-time somebody runs `./mvnw verify -Dnative`. The fix is the two `X-Qits-*` headers
-`TelemetryBootstrapIT` sends; it is a separate change on purpose.
+time somebody runs `./mvnw verify -Dnative`. The fix is the bearer `TelemetryBootstrapIT` carries
+(`StoryTarget.operator()` with the `StoryProfile` key); it is a separate change on purpose.
 
 ## What is not ours to change
 

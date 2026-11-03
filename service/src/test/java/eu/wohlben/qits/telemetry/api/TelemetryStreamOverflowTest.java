@@ -18,6 +18,7 @@ import io.quarkus.test.common.http.TestHTTPResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.QuarkusTestProfile;
 import io.quarkus.test.junit.TestProfile;
+import io.quarkus.test.security.TestSecurity;
 import jakarta.inject.Inject;
 import java.net.URI;
 import java.time.Duration;
@@ -30,6 +31,7 @@ import org.junit.jupiter.api.Test;
  */
 @QuarkusTest
 @TestProfile(TelemetryStreamOverflowTest.SmallQueue.class)
+@TestSecurity(user = "operator", roles = "qits:admin")
 class TelemetryStreamOverflowTest {
 
   public static class SmallQueue implements QuarkusTestProfile {

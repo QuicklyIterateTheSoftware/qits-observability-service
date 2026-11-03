@@ -8,8 +8,6 @@ import java.util.Map;
  *
  * <ul>
  *   <li>The OIDC tenant goes back on. The shipped file turns it off under {@code %test}.
- *   <li>The {@code %test} dev user is blanked, as in {@link NoDevUserProfile}, so a request with no
- *       credential is really anonymous.
  *   <li>{@code quarkus.oidc.public-key} replaces the key fetch. {@code auth-server-url} is cleared
  *       beside it, because a tenant that still has a server URL tries to reach it on the first
  *       bearer.
@@ -26,7 +24,6 @@ public class BearerAuthProfile implements QuarkusTestProfile {
   public Map<String, String> getConfigOverrides() {
     return Map.of(
         "quarkus.oidc.tenant-enabled", "true",
-        "qits.auth.forward.dev-user", "",
         "quarkus.oidc.auth-server-url", "",
         "quarkus.oidc.public-key", BearerTokens.verificationKey(),
         "quarkus.oidc.token.issuer", BearerTokens.ISSUER);

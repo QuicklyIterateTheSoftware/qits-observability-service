@@ -14,6 +14,7 @@ import eu.wohlben.qits.telemetry.control.TelemetryStore;
 import io.opentelemetry.proto.logs.v1.SeverityNumber;
 import io.quarkus.test.common.http.TestHTTPResource;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.security.TestSecurity;
 import jakarta.inject.Inject;
 import java.net.URI;
 import java.time.Duration;
@@ -24,8 +25,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * The live stream end to end: a real WebSocket at {@code /observability/stream}, real OTLP protobuf
- * posted to the ingest route, frames read back off the socket. In this profile the {@code %test}
- * dev user carries {@code qits:admin}, so the upgrade is allowed; {@code security/BearerAuthTest}
+ * posted to the ingest route, frames read back off the socket. The test identity carries {@code
+ * qits:admin} ({@code @TestSecurity}), so the upgrade is allowed; {@code security/BearerAuthTest}
  * covers the door.
  *
  * <p>Where a test says "only this arrives", it posts the unwanted records first and the wanted one
@@ -33,6 +34,7 @@ import org.junit.jupiter.api.Test;
  * be the wanted one. That is a proof, where a short wait for silence is only a hint.
  */
 @QuarkusTest
+@TestSecurity(user = "operator", roles = "qits:admin")
 class TelemetryStreamSocketTest {
 
   private static final Duration SOON = Duration.ofSeconds(10);

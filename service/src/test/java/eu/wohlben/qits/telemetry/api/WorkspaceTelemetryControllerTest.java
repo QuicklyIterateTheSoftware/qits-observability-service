@@ -15,12 +15,14 @@ import eu.wohlben.qits.telemetry.control.TelemetryDecoder;
 import eu.wohlben.qits.telemetry.control.TelemetryStore;
 import io.opentelemetry.proto.logs.v1.SeverityNumber;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.security.TestSecurity;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /** The UI's JSON routes answer from the store buckets. */
 @QuarkusTest
+@TestSecurity(user = "operator", roles = "qits:admin")
 class WorkspaceTelemetryControllerTest {
 
   private static final String REPO = "repo-rest";

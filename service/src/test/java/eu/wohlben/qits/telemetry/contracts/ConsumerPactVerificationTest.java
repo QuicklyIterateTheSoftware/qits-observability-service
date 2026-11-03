@@ -13,6 +13,7 @@ import au.com.dius.pact.provider.junitsupport.State;
 import au.com.dius.pact.provider.junitsupport.loader.PactSource;
 import io.quarkus.test.common.http.TestHTTPResource;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.security.TestSecurity;
 import jakarta.inject.Inject;
 import java.net.URL;
 import java.util.List;
@@ -42,10 +43,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
  * class carries no {@code @IgnoreNoPactsToVerify} and {@link ClasspathPactLoader#REQUIRED} is true:
  * an empty classpath is now an error, not a silent pass.
  *
- * <p>Each interaction runs against this {@code @QuarkusTest} application over real HTTP, as the
- * {@code %test} dev user. Every {@code @State} method delegates to {@link ProviderStates}; {@link
- * #target} fails an unknown state, and an interaction without {@code comments.references.qits-call}
- * or {@code qits-trigger}.
+ * <p>Each interaction runs against this {@code @QuarkusTest} application over real HTTP, as an
+ * operator holding {@code qits:admin} ({@code @TestSecurity}). Every {@code @State} method
+ * delegates to {@link ProviderStates}; {@link #target} fails an unknown state, and an interaction
+ * without {@code comments.references.qits-call} or {@code qits-trigger}.
  *
  * <p><b>A pinned pact that is wrong is named in {@link #KNOWN_WRONG}, by its jar's version</b>, and
  * its interaction is reported as skipped with the reason.
@@ -53,6 +54,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 @QuarkusTest
 @Provider(ConsumerPactVerificationTest.PROVIDER)
 @PactSource(ClasspathPactLoader.class)
+@TestSecurity(user = "operator", roles = "qits:admin")
 class ConsumerPactVerificationTest {
 
   /** The provider's name in a pact: the repository name, not the application name. */

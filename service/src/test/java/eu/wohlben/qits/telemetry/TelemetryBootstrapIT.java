@@ -39,11 +39,10 @@ import org.junit.jupiter.api.BeforeAll;
  *
  * <ul>
  *   <li><b>The two doors are different.</b> {@code OtelReceiverResource} is {@code @PermitAll} and
- *       {@code WorkspaceTelemetryController} is {@code @RolesAllowed("qits:admin")}, and the
- *       difference only exists in a <b>prod</b> launch: under {@code @QuarkusTest} qits-auth-core's
- *       {@code %test} dev-user hands every request {@code qits:admin} before either annotation is
- *       consulted. The refusals story states that one; this one relies on it by carrying real
- *       headers on every read.
+ *       {@code WorkspaceTelemetryController} is {@code @RolesAllowed("qits:admin")}, and a launch is
+ *       where that difference meets the shipped security configuration rather than a test
+ *       identity. The refusals story states that one; this one relies on it by carrying a real
+ *       bearer on every read.
  *   <li><b>The tee is real.</b> {@code OtelForwarder} reads {@code otel.exporter.otlp.endpoint} and
  *       forwards through an {@link java.net.http.HttpClient} built in {@code @PostConstruct} rather
  *       than a static field, precisely so the native image will have it. A tee that fell over in the
@@ -177,8 +176,8 @@ public class TelemetryBootstrapIT {
         .as("the-buffer-starts-empty");
 
     // --- (2) the exporter's end. No identity, no headers, no session: OtelReceiverResource is
-    // @PermitAll and this launch has no dev-user behind it, so a 200 here is the allow-list itself
-    // under test rather than a synthetic identity's courtesy.
+    // @PermitAll and this launch has no test identity behind it, so a 200 here is the allow-list
+    // itself under test rather than a synthetic identity's courtesy.
     NetworkCapture.actor(StoryTarget.EXPORTER);
     StoryTarget.otlp()
         .body(

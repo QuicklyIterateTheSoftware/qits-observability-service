@@ -14,11 +14,12 @@ import java.util.Set;
  * platform-wide audience {@code qits-platform}, {@code sub} the user id, {@code groups} the person's
  * roles, {@code credential_type} {@code cli}, and a {@code kid} in the header.
  *
- * <p>The real extension checks every token made here: {@link BearerAuthProfile} gives it the public
- * half of the key pair in {@code src/test/resources}, and {@link JwksStub} serves that half as a
- * JWKS. The key pair exists for this suite only and protects nothing.
+ * <p>The real extension checks every token made here: {@link BearerAuthProfile} and the story
+ * catalogue's {@code StoryProfile} give it the public half of the key pair in {@code
+ * src/test/resources}, and {@link JwksStub} serves that half as a JWKS. The key pair exists for
+ * this suite only and protects nothing.
  */
-final class BearerTokens {
+public final class BearerTokens {
 
   static final String SIGNING_KEY = "/bearer-token-signing-key.pem";
   static final String VERIFICATION_KEY = "/bearer-token-verification-key.pem";
@@ -31,7 +32,7 @@ final class BearerTokens {
    * for the {@code localhost} domain. {@link JwksStub} publishes it, and {@link BearerAuthProfile}
    * names it where no discovery runs.
    */
-  static final String ISSUER = "https://idp.qits.localhost";
+  public static final String ISSUER = "https://idp.qits.localhost";
 
   /** What qits-platform-idp used to write into {@code iss}; refused since qits-730 wave 3. */
   static final String LEGACY_ISSUER = "http://qits-platform-idp:8080/idp";
@@ -46,7 +47,7 @@ final class BearerTokens {
   static final String SUBJECT = "0b6f4d2e-7a31-4c1e-9d55-3f2a8e6c9b10";
 
   /** A person's CLI token with {@code roles} in {@code groups}. */
-  static String cliToken(String... roles) {
+  public static String cliToken(String... roles) {
     return token(ISSUER, PLATFORM_AUDIENCE, privateKey(), roles);
   }
 
@@ -89,12 +90,12 @@ final class BearerTokens {
   }
 
   /** The value of an {@code Authorization} header that carries {@code token}. */
-  static String bearer(String token) {
+  public static String bearer(String token) {
     return "Bearer " + token;
   }
 
   /** The public key without its PEM armour: quarkus.oidc.public-key takes the key itself. */
-  static String verificationKey() {
+  public static String verificationKey() {
     return pem(VERIFICATION_KEY)
         .replace("-----BEGIN PUBLIC KEY-----", "")
         .replace("-----END PUBLIC KEY-----", "")

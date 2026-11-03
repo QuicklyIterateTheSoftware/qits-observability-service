@@ -13,6 +13,7 @@ import eu.wohlben.qits.telemetry.TelemetryFixtures;
 import eu.wohlben.qits.telemetry.control.TelemetryStore;
 import io.quarkus.test.common.http.TestHTTPResource;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.security.TestSecurity;
 import jakarta.inject.Inject;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -45,6 +46,7 @@ import org.junit.jupiter.api.Test;
  * which is where native-image failures live.
  */
 @QuarkusTest
+@TestSecurity(user = "operator", roles = "qits:admin")
 class CanaryLogStreamTest {
 
   private static final String PROTOBUF = "application/x-protobuf";

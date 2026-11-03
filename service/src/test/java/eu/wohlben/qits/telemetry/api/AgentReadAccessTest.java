@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import io.quarkus.test.common.http.TestHTTPResource;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.security.TestSecurity;
 import java.net.URI;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -13,48 +14,37 @@ import org.junit.jupiter.api.Test;
  * {@code qits:agent}, a commissioned agent's own role: it reads the telemetry API and opens the live
  * stream. This service has no guarded write; ingest stays {@code @PermitAll}.
  *
- * <p>Each request names its identity in {@code X-Qits-User} / {@code X-Qits-Roles}, so the {@code
- * %test} dev user does not apply and the identity holds exactly the role sent.
+ * <p>Each test names its identity with {@code @TestSecurity}, so the identity holds exactly the role
+ * the test means and nothing else.
  */
 @QuarkusTest
 class AgentReadAccessTest {
 
-  private static final Map<String, String> AGENT =
-      Map.of("X-Qits-User", "dyn-workspace-agent", "X-Qits-Roles", "qits:agent");
-
-  /** An admin workspace's agent (qits-628 follow-up): admitted wherever {@code qits:admin} is. */
-  private static final Map<String, String> ADMIN_AGENT =
-      Map.of("X-Qits-User", "dyn-admin-workspace-agent", "X-Qits-Roles", "qits:admin-agent");
-
-  /** The delivery desk's own role (epic qits-1621): admitted wherever {@code qits:admin-agent} is. */
-  private static final Map<String, String> DESK_ADMIN =
-      Map.of("X-Qits-User", "dyn-desk-admin", "X-Qits-Roles", "qits:desk-admin");
-
-  private static final Map<String, String> READER =
-      Map.of("X-Qits-User", "dyn-workspace-agent", "X-Qits-Roles", "qits:reader");
+  private static final String[] READS = {
+    "/observability/api/telemetry/store",
+    "/observability/api/telemetry/sources",
+    "/observability/api/telemetry/errors",
+    "/observability/api/telemetry/traces",
+    "/observability/api/telemetry/slow-spans",
+    "/observability/api/telemetry/logs",
+    "/observability/api/telemetry/metrics"
+  };
 
   @TestHTTPResource("/observability/stream")
   URI endpoint;
 
   @Test
+  @TestSecurity(user = "dyn-workspace-agent", roles = "qits:agent")
   void anAgentReadsTheTelemetryApi() {
-    for (String path :
-        new String[] {
-          "/observability/api/telemetry/store",
-          "/observability/api/telemetry/sources",
-          "/observability/api/telemetry/errors",
-          "/observability/api/telemetry/traces",
-          "/observability/api/telemetry/slow-spans",
-          "/observability/api/telemetry/logs",
-          "/observability/api/telemetry/metrics"
-        }) {
-      given().headers(AGENT).get(path).then().statusCode(200);
+    for (String path : READS) {
+      given().get(path).then().statusCode(200);
     }
   }
 
   @Test
+  @TestSecurity(user = "dyn-workspace-agent", roles = "qits:agent")
   void anAgentOpensTheLiveStream() {
-    assertEquals(101, StreamClient.refusal(endpoint, AGENT));
+    assertEquals(101, StreamClient.refusal(endpoint, Map.of()));
   }
 
   /**
@@ -62,44 +52,36 @@ class AgentReadAccessTest {
    * is admitted wherever {@code qits:admin} is (qits-628 follow-up).
    */
   @Test
+  @TestSecurity(user = "dyn-admin-workspace-agent", roles = "qits:admin-agent")
   void anAdminAgentReadsTheTelemetryApi() {
-    for (String path :
-        new String[] {
-          "/observability/api/telemetry/store",
-          "/observability/api/telemetry/sources",
-          "/observability/api/telemetry/errors",
-          "/observability/api/telemetry/traces",
-          "/observability/api/telemetry/slow-spans",
-          "/observability/api/telemetry/logs",
-          "/observability/api/telemetry/metrics"
-        }) {
-      given().headers(ADMIN_AGENT).get(path).then().statusCode(200);
+    for (String path : READS) {
+      given().get(path).then().statusCode(200);
     }
   }
 
   @Test
+  @TestSecurity(user = "dyn-admin-workspace-agent", roles = "qits:admin-agent")
   void anAdminAgentOpensTheLiveStream() {
-    assertEquals(101, StreamClient.refusal(endpoint, ADMIN_AGENT));
+    assertEquals(101, StreamClient.refusal(endpoint, Map.of()));
   }
 
   /** {@code qits:desk-admin} (epic qits-1621): admitted wherever {@code qits:admin-agent} is. */
   @Test
+  @TestSecurity(user = "dyn-desk-admin", roles = "qits:desk-admin")
   void aDeskAdminReadsTheTelemetryApi() {
-    given()
-        .headers(DESK_ADMIN)
-        .get("/observability/api/telemetry/store")
-        .then()
-        .statusCode(200);
+    given().get("/observability/api/telemetry/store").then().statusCode(200);
   }
 
   @Test
+  @TestSecurity(user = "dyn-desk-admin", roles = "qits:desk-admin")
   void aDeskAdminOpensTheLiveStream() {
-    assertEquals(101, StreamClient.refusal(endpoint, DESK_ADMIN));
+    assertEquals(101, StreamClient.refusal(endpoint, Map.of()));
   }
 
   @Test
+  @TestSecurity(user = "dyn-workspace-agent", roles = "qits:reader")
   void aRoleOutsideTheBoundaryIsStillRefused() {
-    given().headers(READER).get("/observability/api/telemetry/sources").then().statusCode(403);
-    assertEquals(403, StreamClient.refusal(endpoint, READER));
+    given().get("/observability/api/telemetry/sources").then().statusCode(403);
+    assertEquals(403, StreamClient.refusal(endpoint, Map.of()));
   }
 }

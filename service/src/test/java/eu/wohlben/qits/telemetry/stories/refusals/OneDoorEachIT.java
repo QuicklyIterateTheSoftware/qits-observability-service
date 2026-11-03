@@ -32,11 +32,10 @@ import org.junit.jupiter.api.BeforeAll;
  *
  * <p>This is the story no {@code @QuarkusTest} in this repository can tell. {@code
  * OtelReceiverResource} is {@code @PermitAll} and {@code WorkspaceTelemetryController} is {@code
- * @RolesAllowed("qits:admin")}, and under {@code @QuarkusTest} qits-auth-core's {@code %test}
- * dev-user hands every request {@code qits:admin} before either annotation is consulted. So a suite
- * cannot tell the doors apart: it sees 200 either way, and would see 200 either way if the
- * annotations were swapped. A {@code NORMAL} launch has no dev-user, {@code ForwardAuthMechanism} is
- * {@code LaunchMode}-guarded, and the identity is the header or nothing.
+ * @RolesAllowed("qits:admin")}, and a {@code @QuarkusTest} that names its identity with {@code
+ * @TestSecurity} sees whatever that identity is granted rather than the shipped security
+ * configuration. A {@code NORMAL} launch has no test identity: the identity is the bearer or
+ * nothing.
  *
  * <p><b>It is not a hypothetical.</b> This class once carried {@code @RolesAllowed("qits:system")} —
  * caught by the 2026-08-15 "protect observability APIs" sweep, which meant the UI routes. Every
@@ -45,7 +44,7 @@ import org.junit.jupiter.api.BeforeAll;
  * left open on a service that holds every project's telemetry in one process.
  *
  * <p>Three callers, one route, three statuses — and on the wire the only difference between them is
- * two headers a diagram must not print. The <b>actor</b> and the <b>status</b> are what tell them
+ * one header a diagram must not print. The <b>actor</b> and the <b>status</b> are what tell them
  * apart, which is exactly why a story names its initiators before it calls.
  */
 @QuarkusIntegrationTest
@@ -83,14 +82,12 @@ public class OneDoorEachIT {
       Three callers ask this process for the source listing and get three different answers, and a
       fourth carries no identity at all and is served.
 
-      A reader the edge never named is CHALLENGED. The read surface is `qits:admin` and there is
-      nobody to check — no `X-Qits-User`, no identity, 401. This status is unreachable from any
-      @QuarkusTest in this repository, because the test profile's dev-user hands every request the
-      admin role before the annotation is consulted.
+      A reader nobody named is CHALLENGED. The read surface is `qits:admin` and there is nobody to
+      check — no bearer, no identity, 401.
 
-      A reader the edge DID name but did not grant is FORBIDDEN. The identity was fine; the grant
-      was not, and collapsing 403 into 401 would tell an operator to log in again when logging in
-      again is precisely what will not help.
+      A reader whose token names it but does not grant the role is FORBIDDEN. The identity was
+      fine; the grant was not, and collapsing 403 into 401 would tell an operator to log in again
+      when logging in again is precisely what will not help.
 
       A named operator carrying the role is served.
 
@@ -108,14 +105,13 @@ public class OneDoorEachIT {
   void theReadDoorRefusesWhereTheIngestDoorServes(Interactions story) {
     long tracesForwarded = StoryParent.forwardCount(StoryParent.TRACES);
 
-    // (a) no header at all. ForwardAuthMechanism yields no identity in a NORMAL launch — the
-    // %dev/%test dev-user is scoped away AND LaunchMode-guarded — so @RolesAllowed challenges.
+    // (a) no credential at all: no identity in a NORMAL launch, so @RolesAllowed challenges.
     NetworkCapture.actor(StoryTarget.UNNAMED_READER);
     given().get(StoryTarget.SOURCES).then().statusCode(401);
     story
         .note(
-            "a reader the edge never named is CHALLENGED: the read surface is qits:admin and there"
-                + " is nobody to check. A status no @QuarkusTest in this repository can reach")
+            "a reader nobody named is CHALLENGED: the read surface is qits:admin and there"
+                + " is nobody to check")
         .as("an-unnamed-reader-is-challenged");
 
     // (b) named, not granted. A different answer, and it must stay one.
@@ -123,9 +119,9 @@ public class OneDoorEachIT {
     StoryTarget.ungranted().get(StoryTarget.SOURCES).then().statusCode(403);
     story
         .note(
-            "a reader the edge DID name but did not grant is FORBIDDEN — the identity was fine, the"
-                + " grant was not, and collapsing 403 into 401 would tell an operator to log in"
-                + " again when logging in again is exactly what will not help")
+            "a reader whose token names it but does not grant the role is FORBIDDEN — the"
+                + " identity was fine, the grant was not, and collapsing 403 into 401 would tell an"
+                + " operator to log in again when logging in again is exactly what will not help")
         .as("an-ungranted-reader-is-forbidden");
 
     // (c) named and granted.
@@ -134,7 +130,7 @@ public class OneDoorEachIT {
     story
         .note(
             "and a named operator carrying qits:admin is served — three callers, one route, three"
-                + " statuses, and on the wire the only difference between them is two headers a"
+                + " statuses, and on the wire the only difference between them is one header a"
                 + " diagram must not print")
         .as("a-granted-operator-is-served");
 

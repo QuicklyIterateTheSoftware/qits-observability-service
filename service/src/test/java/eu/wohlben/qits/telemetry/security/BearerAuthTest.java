@@ -24,8 +24,8 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /**
- * A person's bearer token, checked by the real quarkus-oidc against a local key, beside the
- * forward-auth headers a browser session keeps arriving with.
+ * A person's bearer token, checked by the real quarkus-oidc against a local key. The token is the
+ * only credential: forwarded {@code X-Qits-*} headers authenticate nothing (epic qits-543).
  *
  * <p>Why tokens reach this service at all: {@code qits observe} calls through the edge with the
  * person's token, and the edge removes the {@code X-Qits-*} headers from any request that carries
@@ -38,8 +38,8 @@ class BearerAuthTest {
 
   private static final String STORE = "/observability/api/telemetry/store";
 
-  /** What the edge sends for a signed-in browser session. */
-  private static final Map<String, String> SESSION =
+  /** What the edge used to send for a signed-in browser session, before forward-auth went. */
+  private static final Map<String, String> FORWARDED =
       Map.of("X-Qits-User", "alice", "X-Qits-Roles", "qits:admin");
 
   @TestHTTPResource("/observability/stream")
@@ -197,37 +197,21 @@ class BearerAuthTest {
     assertEquals(401, StreamClient.refusal(socket, Map.of("Authorization", foreign)));
   }
 
+  // --- forwarded headers are not a credential ---------------------------------------------------
+
   @Test
-  void aBadTokenIsUnauthorizedEvenBesideForwardAuthHeaders() {
-    // The token decides whenever there is one: OIDC's mechanism runs before forward-auth.
+  void forwardedIdentityHeadersAreIgnored() {
+    // The one test in this suite that sends X-Qits-User / X-Qits-Roles: without a bearer they name
+    // nobody, so the request is anonymous and every guarded door answers 401.
     given()
-        .header("Authorization", bearer(BearerTokens.foreignToken("qits:admin")))
-        .headers(SESSION)
+        .headers(FORWARDED)
         .when()
-        .get(STORE)
+        .get("/observability/api/test-identity")
         .then()
-        .statusCode(401);
-  }
-
-  // --- forward-auth headers, unchanged ------------------------------------------------------------
-
-  @Test
-  void aSessionWithHeadersAndNoTokenStillReadsTheApi() {
-    given().headers(SESSION).when().get(STORE).then().statusCode(200);
-  }
-
-  @Test
-  void aSessionWithHeadersAndNoTokenStillOpensTheStream() throws Exception {
-    try (StreamClient client = StreamClient.dial(socket, SESSION)) {
-      assertTrue(client.isOpen());
-    }
-  }
-
-  @Test
-  void headersWithoutTheRoleAreRefusedTheStream() {
-    assertEquals(
-        403,
-        StreamClient.refusal(socket, Map.of("X-Qits-User", "bob", "X-Qits-Roles", "qits:reader")));
+        .statusCode(200)
+        .body("anonymous", equalTo(true));
+    given().headers(FORWARDED).when().get(STORE).then().statusCode(401);
+    assertEquals(401, StreamClient.refusal(socket, FORWARDED));
   }
 
   // --- no credential at all -----------------------------------------------------------------------

@@ -1,5 +1,6 @@
 package eu.wohlben.qits.telemetry.stories.support;
 
+import eu.wohlben.qits.telemetry.security.BearerTokens;
 import io.quarkus.test.junit.QuarkusTestProfile;
 import java.util.Map;
 
@@ -19,12 +20,13 @@ import java.util.Map;
  * data directory to redirect into {@code target/}. The whole of a qits-observability deployment is
  * <b>a process and two addresses</b>, and one of those two is the seam below.
  *
- * <p>It also has <b>no authentication of its own</b>. The edge authenticates and stamps {@code
- * X-Qits-User} / {@code X-Qits-Roles}; this process reads them. So there is no idp to stand up, no
- * tenant, no JWKS and no bearer anywhere in this catalogue — which is also why no story here asserts
- * a secret unleaked: there is none to leak.
+ * <p>Identity is <b>a bearer token</b>, checked by the shipped OIDC tenant (epic qits-543: the
+ * forwarded {@code X-Qits-*} headers authenticate nothing). There is still no idp to stand up: the
+ * profile hands the tenant the suite's local verification key and the issuer the idp would publish,
+ * exactly as {@code security/BearerAuthProfile} does, so a token is checked without a key fetch and
+ * no story draws an arrow to an idp. The key pair exists for this suite only and protects nothing.
  *
- * <h2>Both keys are RUNTIME keys</h2>
+ * <h2>Every key is a RUNTIME key</h2>
  *
  * <p>A packaged process takes its configuration as {@code -D} arguments on an artifact that was
  * already built, so a build-time key here would be silently ignored and the stories would prove
@@ -78,6 +80,10 @@ public class StoryProfile implements QuarkusTestProfile {
     // thing every copy (and a story method's own reads) shares.
     return Map.of(
         "otel.exporter.otlp.endpoint", StoryParent.ensureStarted(),
-        "quarkus.otel.sdk.disabled", "true");
+        "quarkus.otel.sdk.disabled", "true",
+        // The bearer check, without an idp: the local key replaces discovery and the key fetch.
+        "quarkus.oidc.auth-server-url", "",
+        "quarkus.oidc.public-key", BearerTokens.verificationKey(),
+        "quarkus.oidc.token.issuer", BearerTokens.ISSUER);
   }
 }

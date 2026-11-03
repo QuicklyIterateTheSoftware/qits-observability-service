@@ -3,6 +3,7 @@ package eu.wohlben.qits.telemetry.stories.support;
 import static io.restassured.RestAssured.given;
 import static io.restassured.config.EncoderConfig.encoderConfig;
 
+import eu.wohlben.qits.telemetry.security.BearerTokens;
 import eu.wohlben.qits.userflows.Labels;
 import io.restassured.RestAssured;
 import io.restassured.specification.RequestSpecification;
@@ -20,7 +21,7 @@ import io.restassured.specification.RequestSpecification;
  *   <li>{@link #INGEST} — the OTLP/HTTP receiver. {@code @PermitAll}, protobuf only, and its callers
  *       are exporter SDKs that carry no identity and could not be given one.
  *   <li>{@link #QUERY} — the operator's read surface. {@code @RolesAllowed("qits:admin")}, resolved
- *       from two headers the edge stamps and strips.
+ *       from the caller's bearer token.
  *   <li>{@link #READY} — Quarkus' own non-application root, {@code /observability/q}.
  * </ul>
  *
@@ -36,16 +37,15 @@ import io.restassured.specification.RequestSpecification;
  * the ingest paths are fixed, the query paths are fixed, and the only free segment anywhere is a
  * trace id, which is hex. So no story class overrides the predicate.
  *
- * <h2>Two headers are the whole of identity, and there is no credential in this catalogue</h2>
+ * <h2>A bearer is the whole of identity</h2>
  *
- * <p>Authentication terminates at the edge; this service resolves a principal from {@code
- * X-Qits-User} / {@code X-Qits-Roles} and authenticates nothing. There is no bearer, no client
- * secret and no token to mint, so no story here has anything to assert unleaked — the two headers
- * are not secrets, they are the trusted namespace the edge strips from every inbound request.
+ * <p>A reader carries a bearer token whose {@code groups} are its roles, signed with the suite's
+ * own key ({@code security/BearerTokens}); {@link StoryProfile} hands the launched tenant the
+ * public half. The token is minted here for this suite and protects nothing.
  *
- * <p>What the wire says about who is asking is therefore <b>two headers</b>, which is why every
+ * <p>What the wire says about who is asking is therefore <b>one header</b>, which is why every
  * story names its actor before it calls: on the wire an operator, an ungranted reader and an
- * exporter differ by those headers alone, and a tap cannot read a narrative role.
+ * exporter differ by that header alone, and a tap cannot read a narrative role.
  *
  * <h2>Labels: what survives and what is rewritten</h2>
  *
@@ -71,7 +71,7 @@ public final class StoryTarget {
 
   // --- the four initiators ------------------------------------------------------------------
   // Named rather than derived, because the wire cannot tell them apart: an exporter carries no
-  // headers, and the three readers differ only in the two the edge stamps.
+  // credential, and the three readers differ only in the bearer they carry.
 
   /** An OTel SDK inside a workspace container or a platform service. Carries no identity, ever. */
   public static final String EXPORTER = "a workspace exporter";
@@ -79,7 +79,7 @@ public final class StoryTarget {
   /** A person the edge named and granted {@code qits:admin}. */
   public static final String OPERATOR = "a platform operator";
 
-  /** A caller the edge never named — no {@code X-Qits-User} at all. */
+  /** A caller nobody named — no credential at all. */
   public static final String UNNAMED_READER = "an unnamed reader";
 
   /** A caller the edge DID name, carrying roles that do not include {@code qits:admin}. */
@@ -129,11 +129,6 @@ public final class StoryTarget {
   /** The one wire format this receiver speaks. OTLP/JSON and gRPC are deliberately not implemented. */
   public static final String PROTOBUF = "application/x-protobuf";
 
-  /** qits-auth-core's defaults, and the edge's reserved namespace. */
-  public static final String USER_HEADER = "X-Qits-User";
-
-  public static final String ROLES_HEADER = "X-Qits-Roles";
-
   public static final String ADMIN_ROLE = "qits:admin";
 
   private StoryTarget() {}
@@ -155,9 +150,9 @@ public final class StoryTarget {
         .contentType(PROTOBUF);
   }
 
-  /** A read as the edge presents one: a name and the roles asserted from the same session. */
+  /** A read by an operator: a bearer whose groups grant {@link #ADMIN_ROLE}. */
   public static RequestSpecification operator() {
-    return given().header(USER_HEADER, "ops").header(ROLES_HEADER, ADMIN_ROLE);
+    return given().header("Authorization", BearerTokens.bearer(BearerTokens.cliToken(ADMIN_ROLE)));
   }
 
   /**
@@ -165,7 +160,8 @@ public final class StoryTarget {
    * the two must not collapse into one answer.
    */
   public static RequestSpecification ungranted() {
-    return given().header(USER_HEADER, "mallory").header(ROLES_HEADER, "qits:reader");
+    return given()
+        .header("Authorization", BearerTokens.bearer(BearerTokens.cliToken("qits:reader")));
   }
 
   // --- what an assertion has to spell ------------------------------------------------------------

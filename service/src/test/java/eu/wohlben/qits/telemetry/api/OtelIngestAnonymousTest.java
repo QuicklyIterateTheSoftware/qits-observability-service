@@ -2,14 +2,12 @@ package eu.wohlben.qits.telemetry.api;
 
 import static io.restassured.RestAssured.given;
 
-import eu.wohlben.qits.telemetry.security.NoDevUserProfile;
 import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.test.junit.TestProfile;
 import org.junit.jupiter.api.Test;
 
 /**
- * Ingest takes an export from nobody in particular — the deployed posture, with the {@code %test}
- * dev-user fallback blanked so the request really is anonymous.
+ * Ingest takes an export from nobody in particular — the deployed posture: the request carries no
+ * credential and no test identity, so it really is anonymous.
  *
  * <p>The callers of {@code /observability/api/otel/v1/*} are OTel SDK exporters, which carry no
  * identity; a guard here is a guard against every sender at once. This was once {@code
@@ -19,7 +17,6 @@ import org.junit.jupiter.api.Test;
  * the security layer, to answer.
  */
 @QuarkusTest
-@TestProfile(NoDevUserProfile.class)
 class OtelIngestAnonymousTest {
 
   @Test
