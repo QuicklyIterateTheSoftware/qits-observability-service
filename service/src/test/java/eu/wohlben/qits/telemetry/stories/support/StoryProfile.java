@@ -50,13 +50,13 @@ import java.util.Map;
  *
  * <p><b>This service's own OTLP exporter.</b> qits-observability is the platform's telemetry plane
  * and it is also a producer: the shipped configuration points its own SDK at {@code
- * http://dev-qits-observability:8080/observability/api/otel} — <i>itself</i> — so that the one service
+ * http://localhost:8080/observability/api/otel} — <i>itself</i> — so that the one service
  * whose latency and errors would otherwise be invisible reports them too. The SDK is disabled here,
  * and the honest reasons are three:
  *
  * <ul>
- *   <li>The shipped endpoint names a host that resolves on {@code qits-net} and nowhere else, so a
- *       launched artifact would spend the run retrying an export into the void.
+ *   <li>The shipped endpoint is port 8080 on localhost, which a launched artifact on an ephemeral
+ *       port does not listen on, so it would spend the run retrying an export into the void.
  *   <li>Pointing it at the <i>launched process itself</i> is out of reach, not merely undesirable: a
  *       {@code @QuarkusIntegrationTest} gets an ephemeral port, and a {@code @TestProfile}'s
  *       overrides are computed before the process exists. There is no address to hand it.
