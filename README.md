@@ -182,7 +182,7 @@ What is still the deployment's to provide:
 - nothing, for the qits services themselves — **they now export here on their own.** Each of the
   seven carries `quarkus-opentelemetry` and points at one key, `qits.observability.url`, defaulting
   to `http://qits-observability:8080` on `qits-net`. This service is among them: it exports to
-  itself, with its three ingest uris suppressed so the export of a span cannot produce another one.
+  itself at `http://localhost:8080`, with its three ingest uris suppressed so the export of a span cannot produce another one.
   A deployment that moves this receiver sets that one key per service; a deployment that wants a
   service silent sets `quarkus.otel.sdk.disabled=true` there.
 

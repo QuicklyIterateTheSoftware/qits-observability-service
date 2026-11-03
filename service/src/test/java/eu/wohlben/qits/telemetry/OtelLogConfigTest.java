@@ -63,7 +63,7 @@ class OtelLogConfigTest {
     // the receiver does not speak it.
     assertEquals("http/protobuf", value("quarkus.otel.exporter.otlp.protocol"));
     assertEquals(
-        "http://dev-qits-observability:8080/observability/api/otel",
+        "http://localhost:8080/observability/api/otel",
         value("quarkus.otel.exporter.otlp.endpoint"));
   }
 }
