@@ -157,7 +157,7 @@
             <!-- ConsumerPactVerificationTest: qits-platform-access-cli's `qits observe` errors,
                  metrics, query and sources (ticket qits-1149); the jar carries pacts/qits-platform-access-cli_qits-observability-service.json. -->
             <groupId>${project.groupId}</groupId>
-            <artifactId>qits-platform-access-cli-pacts-qits-observability-service</artifactId>
+            <artifactId>qits-platform-access-monorepo-pacts-qits-observability-service</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
