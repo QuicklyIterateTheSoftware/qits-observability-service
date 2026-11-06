@@ -82,20 +82,20 @@ components:
       - subscribe
       properties:
         subscribe:
-          type: array
-          items: {}
           description: "The groups of a live subscribe frame, exactly as README \"\
             The live stream\" defines them: [{\"conditions\": [{\"field\", \"op\"\
             , \"value\", \"key\"?}]}]. Groups OR, conditions AND; [] matches nothing."
+          type: array
+          items: {}
         since:
           type: string
-          format: date-time
           description: "Inclusive lower bound, an ISO-8601 instant. Absent: no lower\
             \ bound."
+          format: date-time
         until:
           type: string
-          format: date-time
           description: "Inclusive upper bound, an ISO-8601 instant. Absent: now."
+          format: date-time
         limit:
           type: integer
           format: int32
@@ -303,8 +303,8 @@ components:
           type: integer
           format: int32
     TelemetryStoreState:
-      type: object
       description: The in-memory buffer's own state.
+      type: object
       properties:
         startedAt:
           $ref: "#/components/schemas/Instant"
