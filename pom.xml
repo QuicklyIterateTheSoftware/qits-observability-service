@@ -58,14 +58,14 @@
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
         <quarkus.platform.version>3.40.1</quarkus.platform.version>
-        <qits.auth-core.version>2026.1105.105731</qits.auth-core.version>
+        <qits.auth-core.version>2026.1106.507</qits.auth-core.version>
         <!-- Service-to-service HTTP that says who is calling: QitsHttpClients.wrap turns a raw
              java.net.http.HttpClient into one that opens a CLIENT span and sends traceparent plus
              X-Qits-Caller; the server filter (jandex-discovered off this jar alone) records an
              inbound caller on the server span. OtelForwarder's own client stays unwrapped
              (@RawHttpClient) — this service still takes the dependency so the server filter is
              active. Not released yet (qits-1198). -->
-        <qits.http-core.version>2026.1103.132907</qits.http-core.version>
+        <qits.http-core.version>2026.1106.507</qits.http-core.version>
         <!-- The user-story framework (test scope): the seven @UserStory classes under
              service/src/test/java/…/telemetry/stories (plus TelemetryBootstrapIT, which owns the
              boot) are written against it, so a run that boots the packaged artifact also
@@ -79,11 +79,11 @@
         <!-- The platform's shared ArchUnit rules (test scope), carrying DeskAdminParityRules —
              epic qits-1621's check that every route admitting qits:admin-agent also admits
              qits:desk-admin. This context did not depend on qits-arch-rules before. -->
-        <qits.arch-rules.version>2026.1030.30851</qits.arch-rules.version>
+        <qits.arch-rules.version>2026.1106.507</qits.arch-rules.version>
         <!-- The consumer half of the contracts (ticket qits-1149): qits-pact-consumer reads the idp's
              golden masters and writes pacts/qits-observability-service_qits-idp-service.json.
              Exact pins: a newer recording is a deliberate bump. -->
-        <qits.pact-consumer.version>2026.1019.82625</qits.pact-consumer.version>
+        <qits.pact-consumer.version>2026.1106.507</qits.pact-consumer.version>
         <qits.idp-golden-masters.version>2026.1027.165632</qits.idp-golden-masters.version>
         <!-- THE PROVIDER HALF (ticket qits-1163): the first published
              `eu.wohlben.qits:<consumer>-pacts-qits-observability-service` jar,
