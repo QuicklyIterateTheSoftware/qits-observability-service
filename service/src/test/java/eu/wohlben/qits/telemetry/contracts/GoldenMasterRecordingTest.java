@@ -54,12 +54,15 @@ import org.junit.jupiter.api.Test;
  * request's route as {@code path} and its query as {@code query}, and a request body only for an
  * operation whose OpenAPI declares one — the recording fails on a mismatch.
  *
- * <p><b>The OTLP receiver</b> ({@code exportLogs}) is hidden from the served OpenAPI but carries an
- * operationId, and that is all a recording needs. Its request is protobuf, which no pact matches, so
- * it is recorded without a body: the index holds its {@code contentType} and its request {@code
- * headers} (the bearer, as {@code {authorization}}), and the call sends a zero-length body — an
- * empty {@code ExportLogsServiceRequest}, which decodes to nothing. Its answer is protobuf too, so
- * the file holds {@code {}}: a consumer reads its status only.
+ * <p><b>The OTLP receivers</b> ({@code exportLogs}, {@code exportTraces}, {@code exportMetrics}) are
+ * hidden from the served OpenAPI but carry an operationId each, and that is all a recording needs.
+ * Their request is protobuf, which no pact matches, so each is recorded without a body: the index
+ * holds its {@code contentType} and, for {@code exportLogs}, its request {@code headers} (the
+ * bearer, as {@code {authorization}}); the call sends a zero-length body — an empty {@code
+ * Export*ServiceRequest}, which decodes to nothing. {@code exportTraces} and {@code exportMetrics}
+ * are recorded with no headers at all and no bearer: ingest is {@code @PermitAll}, and an OTel SDK
+ * exporter carries no identity. Every answer is protobuf too, so the file holds {@code {}}: a
+ * consumer reads its status only.
  *
  * <p>It <b>compares by default</b> and fails with a unified diff per differing file — including a
  * committed {@code .json} no interaction produces any more. {@code -Dgolden.update=true} (or {@code
@@ -185,7 +188,27 @@ class GoldenMasterRecordingTest {
               null,
               200,
               PROTOBUF,
-              Map.of("Authorization", "{authorization}")));
+              Map.of("Authorization", "{authorization}")),
+          // What an OTel SDK exporter sends: protobuf, no identity at all — ingest is @PermitAll.
+          new Interaction(
+              EMPTY,
+              OtelReceiverResource.EXPORT_TRACES,
+              "POST",
+              OTEL + "/traces",
+              null,
+              200,
+              PROTOBUF,
+              Map.of()),
+          // Same as traces: an OTel SDK exporter, protobuf, no identity.
+          new Interaction(
+              EMPTY,
+              OtelReceiverResource.EXPORT_METRICS,
+              "POST",
+              OTEL + "/metrics",
+              null,
+              200,
+              PROTOBUF,
+              Map.of()));
 
   private static final ObjectMapper JSON = new ObjectMapper();
 

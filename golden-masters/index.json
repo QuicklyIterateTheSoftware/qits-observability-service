@@ -28,6 +28,34 @@
           }
         },
         {
+          "operationId": "exportMetrics",
+          "method": "POST",
+          "path": "/observability/api/otel/v1/metrics",
+          "contentType": "application/x-protobuf",
+          "status": 200,
+          "file": "an-empty-telemetry-buffer/exportMetrics.json",
+          "frozen": {
+            "ids": [],
+            "instants": [],
+            "strings": [],
+            "listFilteredTo": null
+          }
+        },
+        {
+          "operationId": "exportTraces",
+          "method": "POST",
+          "path": "/observability/api/otel/v1/traces",
+          "contentType": "application/x-protobuf",
+          "status": 200,
+          "file": "an-empty-telemetry-buffer/exportTraces.json",
+          "frozen": {
+            "ids": [],
+            "instants": [],
+            "strings": [],
+            "listFilteredTo": null
+          }
+        },
+        {
           "operationId": "getTelemetryStore",
           "method": "GET",
           "path": "/observability/api/telemetry/store",

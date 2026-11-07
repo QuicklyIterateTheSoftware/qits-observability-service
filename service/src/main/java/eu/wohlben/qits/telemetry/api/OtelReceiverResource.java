@@ -42,12 +42,13 @@ import org.eclipse.microprofile.openapi.annotations.Operation;
  * <p>Hidden from the OpenAPI document: these are wire-protocol endpoints for OTel SDKs, not part of
  * the JSON API the generated Angular client consumes.
  *
- * <p>{@link #logs} nevertheless carries the operationId {@value #EXPORT_LOGS}, because it has a
- * consumer that pacts it (ticket qits-1163): qits-runner-toolkit's {@code Telemetry} posts OTLP log
- * batches here for the runner daemons, and its pact names the call by that id. The golden-master
+ * <p>All three carry an operationId — {@link #logs} is {@value #EXPORT_LOGS}, {@link #traces} is
+ * {@value #EXPORT_TRACES}, {@link #metrics} is {@value #EXPORT_METRICS} — because the golden-master
  * recording keys operations by operationId, not by the served document, so a hidden operation is
- * recordable once it has one; hiding it keeps it out of the public document, as before. The id is
- * a contract: renaming it breaks the toolkit's pact.
+ * recordable once it has one; hiding it keeps every one of them out of the public document, as
+ * before (ticket qits-1932). {@link #logs}'s id is additionally pinned by a consumer that pacts it
+ * (ticket qits-1163): qits-runner-toolkit's {@code Telemetry} posts OTLP log batches here for the
+ * runner daemons, and its pact names the call by that id — renaming it breaks the toolkit's pact.
  *
  * <p>When qits itself runs as a managed service, every export is additionally teed byte-verbatim to
  * the parent qits via {@link OtelForwarder} — before decoding, so the forward carries the exact
@@ -78,6 +79,12 @@ public class OtelReceiverResource {
   /** The logs receiver's operationId, which qits-runner-toolkit's pact names. */
   public static final String EXPORT_LOGS = "exportLogs";
 
+  /** The traces receiver's operationId. */
+  public static final String EXPORT_TRACES = "exportTraces";
+
+  /** The metrics receiver's operationId. */
+  public static final String EXPORT_METRICS = "exportMetrics";
+
   /**
    * The request ceiling this process already enforces on the wire, read rather than restated: a
    * second copy of the number would be free to drift from the one the HTTP layer uses, and the two
@@ -100,7 +107,7 @@ public class OtelReceiverResource {
 
   @POST
   @Path("/traces")
-  @Operation(hidden = true)
+  @Operation(hidden = true, operationId = EXPORT_TRACES)
   public byte[] traces(
       @HeaderParam(HttpHeaders.CONTENT_TYPE) String contentType,
       @HeaderParam("Content-Encoding") String contentEncoding,
@@ -130,7 +137,7 @@ public class OtelReceiverResource {
 
   @POST
   @Path("/metrics")
-  @Operation(hidden = true)
+  @Operation(hidden = true, operationId = EXPORT_METRICS)
   public byte[] metrics(
       @HeaderParam(HttpHeaders.CONTENT_TYPE) String contentType,
       @HeaderParam("Content-Encoding") String contentEncoding,
