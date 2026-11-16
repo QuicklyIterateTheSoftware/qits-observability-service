@@ -42,7 +42,7 @@
          in-memory, deliberately ephemeral TelemetryStore). -->
     <groupId>eu.wohlben.qits</groupId>
     <artifactId>qits-observability</artifactId>
-    <version>2026.1114.170911</version>
+    <version>2026.1116.94715</version>
     <packaging>pom</packaging>
     <name>qits-observability</name>
 
