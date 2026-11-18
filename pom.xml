@@ -95,6 +95,9 @@
         <!-- qits-platform-access-cli's `qits observe` (ticket qits-1149):
              `pacts/qits-platform-access-cli_qits-observability-service.json`. -->
         <qits.platform-access-monorepo-pacts-qits-observability-service.version>2026.1103.101116</qits.platform-access-monorepo-pacts-qits-observability-service.version>
+        <!-- qits-landing-app's Observability › Logs page (ticket qits-2313): listTelemetrySources and
+             searchTelemetryLogs, `pacts/qits-landing-app_qits-observability-service.json`. -->
+        <qits.landing-app-pacts-qits-observability-service.version>2026.1118.225428</qits.landing-app-pacts-qits-observability-service.version>
         <qits.system-runner-daemon-pacts-qits-observability-service.version>2026.1117.181756</qits.system-runner-daemon-pacts-qits-observability-service.version>
         <pact.version>4.6.21</pact.version>
         <qits.maven.repository.url>https://registry.qits.wohlben.eu/artifacts/maven/maven</qits.maven.repository.url>
@@ -211,6 +214,12 @@
                 <groupId>${project.groupId}</groupId>
                 <artifactId>qits-system-runner-daemon-pacts-qits-observability-service</artifactId>
                 <version>${qits.system-runner-daemon-pacts-qits-observability-service.version}</version>
+            </dependency>
+            <dependency>
+                <!-- The landing app's consumer pact (ticket qits-2313), verified by ConsumerPactVerificationTest. -->
+                <groupId>${project.groupId}</groupId>
+                <artifactId>qits-landing-app-pacts-qits-observability-service</artifactId>
+                <version>${qits.landing-app-pacts-qits-observability-service.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

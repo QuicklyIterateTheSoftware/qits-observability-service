@@ -179,6 +179,14 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <!-- ConsumerPactVerificationTest: qits-landing-app's Observability › Logs page (ticket
+                 qits-2313), listTelemetrySources and searchTelemetryLogs; the jar carries
+                 pacts/qits-landing-app_qits-observability-service.json. -->
+            <groupId>${project.groupId}</groupId>
+            <artifactId>qits-landing-app-pacts-qits-observability-service</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <!-- The user-story framework: the story catalogue under src/test/java/…/telemetry/stories
                  (plus TelemetryBootstrapIT, which owns the boot) is written as @UserStory methods,
                  so the packaged round-trip proof doubles as documentation — steps, notes and an
