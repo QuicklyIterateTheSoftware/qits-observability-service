@@ -82,10 +82,26 @@ class ConsumerPactVerificationTest {
    * never answered by bending the provider to it (the pattern of qits-maintenance-service's).
    * qits-platform-access-cli 2026.1019.65035's metrics and query rows, which bound exponent-form
    * doubles with a matcher that rejects them, were fixed in 2026.1019.92700, the version pinned.
-   * qits-landing-app 2026.1120.144923's metrics row has the same defect (qits-2340).
+   * qits-landing-app 2026.1120.144923's metrics row has the same defect (qits-2340), and so do
+   * 2026.1120.160918's and 2026.1120.165848's, which republish it unchanged (qits-2341); the fix
+   * is qits-2396.
    */
   static final List<KnownWrong> KNOWN_WRONG =
       List.of(
+          new KnownWrong(
+              "qits-landing-app",
+              "2026.1120.165848",
+              "show-telemetry-metrics: listTelemetryMetrics",
+              "the row binds the gauge's exponent-form 1.5E8 with pact-jvm's 'number' matcher,"
+                  + " which pact-jvm 4.6.21 rejects; republished unchanged by qits-2341's"
+                  + " release, fixed by qits-2396"),
+          new KnownWrong(
+              "qits-landing-app",
+              "2026.1120.160918",
+              "show-telemetry-metrics: listTelemetryMetrics",
+              "the row binds the gauge's exponent-form 1.5E8 with pact-jvm's 'number' matcher,"
+                  + " which pact-jvm 4.6.21 rejects; republished unchanged by the release before"
+                  + " qits-2341's, fixed by qits-2396"),
           new KnownWrong(
               "qits-landing-app",
               "2026.1120.144923",
