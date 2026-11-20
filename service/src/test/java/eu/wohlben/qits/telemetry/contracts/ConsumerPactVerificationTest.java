@@ -98,6 +98,13 @@ class ConsumerPactVerificationTest {
                   + " qits-2342's release, fixed by qits-2396"),
           new KnownWrong(
               "qits-landing-app",
+              "2026.1120.204554",
+              "show-telemetry-metrics: listTelemetryMetrics",
+              "the row binds the gauge's exponent-form 1.5E8 with pact-jvm's 'number' matcher,"
+                  + " which pact-jvm 4.6.21 rejects; republished unchanged by qits-2343's"
+                  + " release, fixed by qits-2396"),
+          new KnownWrong(
+              "qits-landing-app",
               "2026.1120.165848",
               "show-telemetry-metrics: listTelemetryMetrics",
               "the row binds the gauge's exponent-form 1.5E8 with pact-jvm's 'number' matcher,"
