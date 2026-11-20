@@ -168,6 +168,15 @@ class GoldenMasterRecordingTest {
               200),
           new Interaction(EMPTY, "getTelemetryStore", "GET", API + "/store", null, 200),
           new Interaction(EMPTY, "listTelemetrySources", "GET", API + "/sources", null, 200),
+          // An unknown or evicted trace is an empty 200, never a 404; the landing trace page's
+          // empty state (qits-2343).
+          new Interaction(
+              EMPTY,
+              "getTelemetryTrace",
+              "GET",
+              API + "/traces/{traceId}?source={source}",
+              null,
+              200),
           // The refusal `qits observe query` branches on (a 400 is the caller's to fix): a filter
           // the service cannot read — here an op it does not know, which is what a CLI newer or
           // older than the service would send.

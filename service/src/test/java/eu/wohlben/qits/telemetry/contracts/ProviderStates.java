@@ -134,13 +134,20 @@ public class ProviderStates {
   static final String CONTRACT_AUTHORIZATION = "Bearer qits_tok_contract-telemetry";
 
   /**
-   * Nothing buffered. The one param, {@code authorization}, is the bearer an exporter that carries
-   * one sends to the OTLP receiver ({@code exportLogs}); the query operations ignore it.
+   * Nothing buffered. {@code authorization} is the bearer an exporter that carries one sends to
+   * the OTLP receiver ({@code exportLogs}); the query operations ignore it. {@code source} and
+   * {@code traceId} are {@value #SOURCE} and {@value #FAILED_TRACE_ID} — the trace and source a
+   * buffered service would have held, {@link #telemetryFromOneService()}'s values, now absent —
+   * so a trace lookup against this state is an unknown or evicted trace, not a made-up one.
    */
   private Setup anEmptyTelemetryBuffer() {
     store.clear();
     clock.fixAt(NOW);
-    return new Setup(Map.of("authorization", CONTRACT_AUTHORIZATION));
+    Map<String, String> params = new TreeMap<>();
+    params.put("authorization", CONTRACT_AUTHORIZATION);
+    params.put("source", SOURCE);
+    params.put("traceId", FAILED_TRACE_ID);
+    return new Setup(Collections.unmodifiableMap(params));
   }
 
   /**
