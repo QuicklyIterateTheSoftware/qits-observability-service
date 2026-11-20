@@ -80,11 +80,19 @@ class ConsumerPactVerificationTest {
    * is for that version alone, so the bump carrying the consumer's fix verifies the interaction
    * for real, and a bump that does not fix it goes red here. Each is skipped with its reason —
    * never answered by bending the provider to it (the pattern of qits-maintenance-service's).
-   * None at present: qits-platform-access-cli 2026.1019.65035's metrics and query rows, which
-   * bound exponent-form doubles with a matcher that rejects them, were fixed in 2026.1019.92700,
-   * the version pinned.
+   * qits-platform-access-cli 2026.1019.65035's metrics and query rows, which bound exponent-form
+   * doubles with a matcher that rejects them, were fixed in 2026.1019.92700, the version pinned.
+   * qits-landing-app 2026.1120.144923's metrics row has the same defect (qits-2340).
    */
-  static final List<KnownWrong> KNOWN_WRONG = List.of();
+  static final List<KnownWrong> KNOWN_WRONG =
+      List.of(
+          new KnownWrong(
+              "qits-landing-app",
+              "2026.1120.144923",
+              "show-telemetry-metrics: listTelemetryMetrics",
+              "the row binds the gauge's exponent-form 1.5E8 with pact-jvm's 'number' matcher,"
+                  + " which pact-jvm 4.6.21 rejects; the consumer's matcher (@qits/angular"
+                  + " addGoldenInteraction) must change (qits-2340)"));
 
   @Inject ProviderStates states;
   @Inject ContractClock clock;
