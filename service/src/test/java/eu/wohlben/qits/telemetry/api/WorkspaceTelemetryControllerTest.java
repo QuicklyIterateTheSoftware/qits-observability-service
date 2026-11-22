@@ -324,6 +324,52 @@ class WorkspaceTelemetryControllerTest {
         .body("logs[0].body", equalTo("unscoped log"));
   }
 
+  /** No source and no pair: one tail over every bucket, each line naming its source (qits-2534). */
+  @Test
+  void withoutASourceTheLogTailMergesEverySource() {
+    seedServiceTelemetry("qits-ci", TelemetryFixtures.TRACE_ID_B, TelemetryFixtures.SPAN_ID_B);
+
+    given()
+        .get(BASE + "/logs")
+        .then()
+        .statusCode(200)
+        .body("logs", hasSize(2))
+        .body("total", equalTo(2))
+        .body("logs.find { it.serviceName == 'qits-ci' }.source", equalTo("_service/qits-ci"))
+        .body("logs.find { it.serviceName == 'svc' }.source", equalTo("repo-rest/wt-rest"));
+    given()
+        .get(BASE + "/logs?service=qits-ci")
+        .then()
+        .statusCode(200)
+        .body("logs", hasSize(1))
+        .body("logs[0].body", equalTo("unscoped log"));
+    given()
+        .get(BASE + "/logs?query=rest")
+        .then()
+        .statusCode(200)
+        .body("logs", hasSize(1))
+        .body("logs[0].serviceName", equalTo("svc"));
+    given().get(BASE + "/logs?limit=1").then().statusCode(200).body("truncated", equalTo(true));
+  }
+
+  /** {@code traceId} keeps one trace's lines, merged or within a source (qits-2535). */
+  @Test
+  void traceIdNarrowsTheLogTailToOneTrace() {
+    seedServiceTelemetry("qits-ci", TelemetryFixtures.TRACE_ID_B, TelemetryFixtures.SPAN_ID_B);
+
+    given()
+        .get(BASE + "/logs?traceId=" + TelemetryFixtures.TRACE_ID_B)
+        .then()
+        .statusCode(200)
+        .body("logs", hasSize(1))
+        .body("logs[0].traceId", equalTo(TelemetryFixtures.TRACE_ID_B));
+    given()
+        .get(BASE + "/logs?" + SCOPE + "&traceId=" + TelemetryFixtures.TRACE_ID_B)
+        .then()
+        .statusCode(200)
+        .body("logs", hasSize(0));
+  }
+
   /**
    * An unknown source answers the same empty list an unknown workspace does, and on purpose: the
    * store cannot tell "never existed" from "evicted", so the surface does not pretend to. The

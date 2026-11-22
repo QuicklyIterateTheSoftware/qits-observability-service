@@ -1,0 +1,46 @@
+{
+  "sources": [
+    {
+      "key": "_service/qits-example",
+      "kind": "SERVICE",
+      "label": "qits-example",
+      "repositoryId": null,
+      "workspaceId": null,
+      "services": [
+        {
+          "name": "qits-example",
+          "spans": 3,
+          "logs": 2,
+          "metricSeries": 2
+        }
+      ],
+      "spans": 3,
+      "logs": 2,
+      "metricSeries": 2,
+      "bytes": 4892,
+      "oldestReceivedAt": "2026-01-01T00:00:00Z",
+      "newestReceivedAt": "2026-01-01T00:00:00Z"
+    },
+    {
+      "key": "_service/qits-other",
+      "kind": "SERVICE",
+      "label": "qits-other",
+      "repositoryId": null,
+      "workspaceId": null,
+      "services": [
+        {
+          "name": "qits-other",
+          "spans": 0,
+          "logs": 1,
+          "metricSeries": 0
+        }
+      ],
+      "spans": 0,
+      "logs": 1,
+      "metricSeries": 0,
+      "bytes": 426,
+      "oldestReceivedAt": "2026-01-01T00:00:00Z",
+      "newestReceivedAt": "2026-01-01T00:00:00Z"
+    }
+  ]
+}

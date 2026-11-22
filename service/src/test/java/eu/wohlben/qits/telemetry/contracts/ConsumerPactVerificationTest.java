@@ -193,6 +193,11 @@ class ConsumerPactVerificationTest {
     return states.params(ProviderStates.TELEMETRY_RECORDS_OF_EVERY_KIND);
   }
 
+  @State(ProviderStates.TELEMETRY_FROM_TWO_SERVICES)
+  Map<String, String> telemetryFromTwoServices() {
+    return states.params(ProviderStates.TELEMETRY_FROM_TWO_SERVICES);
+  }
+
   @State(ProviderStates.AN_EMPTY_TELEMETRY_BUFFER)
   Map<String, String> anEmptyTelemetryBuffer() {
     return states.params(ProviderStates.AN_EMPTY_TELEMETRY_BUFFER);

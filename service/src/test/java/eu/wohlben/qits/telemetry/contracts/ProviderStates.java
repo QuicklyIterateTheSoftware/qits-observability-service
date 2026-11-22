@@ -60,6 +60,14 @@ public class ProviderStates {
   /** The records search's state (qits-platform-access-cli, {@code qits observe query}). */
   public static final String TELEMETRY_RECORDS_OF_EVERY_KIND = "telemetry records of every kind";
 
+  /** The merged log tail's state (qits-landing-app's Logs page, qits-2534). */
+  public static final String TELEMETRY_FROM_TWO_SERVICES = "telemetry from two platform services";
+
+  /** The second service of {@link #TELEMETRY_FROM_TWO_SERVICES}. */
+  static final String OTHER_SERVICE = "qits-other";
+
+  static final String OTHER_SOURCE = TelemetryStore.SERVICE_KEY_PREFIX + OTHER_SERVICE;
+
   /** 2026-01-01T00:00:00Z: the time every record in a state is dated from. */
   static final Instant T0 = Instant.parse("2026-01-01T00:00:00Z");
 
@@ -96,6 +104,7 @@ public class ProviderStates {
     states.put(TELEMETRY_FROM_ONE_SERVICE, this::telemetryFromOneService);
     states.put(AN_EMPTY_TELEMETRY_BUFFER, this::anEmptyTelemetryBuffer);
     states.put(TELEMETRY_RECORDS_OF_EVERY_KIND, this::telemetryRecordsOfEveryKind);
+    states.put(TELEMETRY_FROM_TWO_SERVICES, this::telemetryFromTwoServices);
   }
 
   /** Every state name this provider answers for. */
@@ -292,6 +301,49 @@ public class ProviderStates {
     params.put("now", NOW.toString());
     params.put("since", WINDOW_SINCE.toString());
     params.put("until", NOW.toString());
+    return new Setup(Collections.unmodifiableMap(params));
+  }
+
+  /**
+   * {@link #TELEMETRY_FROM_ONE_SERVICE}'s buffer plus a second platform service, {@value
+   * #OTHER_SERVICE}, which logged one WARN between that service's two lines and carries no trace.
+   * So the merged tail interleaves two sources by record time. Params add {@code otherService} and
+   * {@code otherSource}.
+   */
+  private Setup telemetryFromTwoServices() {
+    Map<String, String> params = new TreeMap<>(telemetryFromOneService().params());
+    long received = T0.toEpochMilli() + 2_000L;
+    long t0 = T0.toEpochMilli() * 1_000_000L;
+    Resource resource =
+        Resource.newBuilder()
+            .addAttributes(attribute("service.name", OTHER_SERVICE))
+            .addAttributes(attribute("service.version", "2026.1231.110000"))
+            .addAttributes(attribute("deployment.environment.name", "dev"))
+            .build();
+    LogRecord warn =
+        LogRecord.newBuilder()
+            .setTimeUnixNano(t0 + 300_000_000L)
+            .setObservedTimeUnixNano(t0 + 300_000_000L)
+            .setSeverityNumber(SeverityNumber.SEVERITY_NUMBER_WARN)
+            .setSeverityText("WARN")
+            .setBody(AnyValue.newBuilder().setStringValue("cache miss rate high"))
+            .build();
+    store.addLogs(
+        decoder.decodeLogs(
+            ExportLogsServiceRequest.newBuilder()
+                .addResourceLogs(
+                    ResourceLogs.newBuilder()
+                        .setResource(resource)
+                        .addScopeLogs(
+                            ScopeLogs.newBuilder()
+                                .setScope(
+                                    InstrumentationScope.newBuilder()
+                                        .setName("io.quarkus.opentelemetry"))
+                                .addLogRecords(warn)))
+                .build(),
+            received));
+    params.put("otherService", OTHER_SERVICE);
+    params.put("otherSource", OTHER_SOURCE);
     return new Setup(Collections.unmodifiableMap(params));
   }
 

@@ -8,6 +8,7 @@
       "traceId": "6a1f0c2b9d8e47f3a5b4c3d2e1f00a01",
       "spanId": "7b2e1d3c4f5a6b01",
       "serviceName": "qits-example",
+      "source": "_service/qits-example",
       "attributes": {},
       "resourceAttributes": {
         "service.name": "qits-example",
@@ -23,6 +24,7 @@
       "traceId": "6a1f0c2b9d8e47f3a5b4c3d2e1f00a01",
       "spanId": "7b2e1d3c4f5a6b01",
       "serviceName": "qits-example",
+      "source": "_service/qits-example",
       "attributes": {
         "exception.type": "java.lang.IllegalStateException",
         "exception.message": "invoice store unreachable"

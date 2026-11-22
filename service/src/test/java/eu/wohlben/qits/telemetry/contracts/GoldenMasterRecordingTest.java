@@ -114,6 +114,7 @@ class GoldenMasterRecordingTest {
   private static final String ONE = ProviderStates.TELEMETRY_FROM_ONE_SERVICE;
   private static final String EMPTY = ProviderStates.AN_EMPTY_TELEMETRY_BUFFER;
   private static final String EVERY_KIND = ProviderStates.TELEMETRY_RECORDS_OF_EVERY_KIND;
+  private static final String TWO = ProviderStates.TELEMETRY_FROM_TWO_SERVICES;
 
   static final List<Interaction> INTERACTIONS =
       List.of(
@@ -166,6 +167,9 @@ class GoldenMasterRecordingTest {
               API + "/logs?source={source}&sinceMinutes=60",
               null,
               200),
+          // The landing Logs page's default read: no source, every source merged (qits-2534).
+          new Interaction(TWO, "searchTelemetryLogs", "GET", API + "/logs", null, 200),
+          new Interaction(TWO, "listTelemetrySources", "GET", API + "/sources", null, 200),
           new Interaction(EMPTY, "getTelemetryStore", "GET", API + "/store", null, 200),
           new Interaction(EMPTY, "listTelemetrySources", "GET", API + "/sources", null, 200),
           // An unknown or evicted trace is an empty 200, never a 404; the landing trace page's

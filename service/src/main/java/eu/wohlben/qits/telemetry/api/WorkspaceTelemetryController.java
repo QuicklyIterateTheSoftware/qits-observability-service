@@ -239,6 +239,11 @@ public class WorkspaceTelemetryController {
    * reading as "the last 200 errors". An unrecognised value is a 400, because a severity filter
    * that silently stopped filtering is the one wrong answer this endpoint must never give. Records
    * carrying no severity at all are excluded whenever a floor is named.
+   *
+   * <p><strong>Without a source and without the workspace pair it reads every source</strong>,
+   * merged by record time into one tail (qits-2534); {@code service} then narrows it to one
+   * service. Each line names its {@code source}, so it can open its trace. {@code traceId} keeps
+   * one trace's lines (qits-2535).
    */
   @GET
   @Path("/logs")
@@ -250,15 +255,17 @@ public class WorkspaceTelemetryController {
       @QueryParam("query") String query,
       @QueryParam("service") String service,
       @QueryParam("minSeverity") String minSeverity,
+      @QueryParam("traceId") String traceId,
       @QueryParam("sinceMinutes") Integer sinceMinutes,
       @QueryParam("limit") @DefaultValue("" + DEFAULT_LIMIT) int limit) {
     TelemetryQueryService.Page<TelemetryLogDto> page =
         queryService.searchLogsIn(
-            TelemetryQueryService.sourceKey(source, repoId, workspaceId),
+            TelemetryQueryService.logSourceKey(source, repoId, workspaceId),
             query,
             sinceMinutes,
             service,
             TelemetryQueryService.severityFloor(minSeverity),
+            traceId,
             checkedLimit(limit));
     return new SearchTelemetryLogsRequest.Response(page.items(), page.total(), page.truncated());
   }

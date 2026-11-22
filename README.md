@@ -206,6 +206,11 @@ by SDKs, not something a generated client calls; everything else is in `docs/ope
 way to reach the buckets keyed on `service.name`, which is where all of this platform's own
 telemetry lands; the pair cannot spell them, because a pair key always contains a `/`.
 
+`logs` alone also answers with **neither**: then it reads every bucket, merged by record time into
+one tail, and `?service=` is what narrows it to one service. Every log line names its `source`
+(the bucket key), so a line from the merged tail can open its trace. `?traceId=` keeps one
+trace's lines.
+
 **The narrowing lenses are the service's, not a screen's.** `?service=` narrows every query above to
 one reporting service, `?sinceMinutes=` windows on the ingest stamp, and on `logs` `?minSeverity=`
 is a floor on the OTel severity — `TRACE`/`DEBUG`/`INFO`/`WARN`/`ERROR`/`FATAL` (case-insensitive,

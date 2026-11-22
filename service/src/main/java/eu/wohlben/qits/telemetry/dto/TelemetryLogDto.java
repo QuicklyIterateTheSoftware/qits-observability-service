@@ -1,5 +1,6 @@
 package eu.wohlben.qits.telemetry.dto;
 
+import eu.wohlben.qits.telemetry.control.TelemetryStore;
 import java.util.Map;
 
 /**
@@ -15,6 +16,10 @@ import java.util.Map;
  * reaches a screen with no change here. And the map repeats on every record of a page, because the
  * store holds it per record rather than per source — a few hundred bytes a row, which is why the
  * page limits stay where they are.
+ *
+ * <p>{@code source} is the key of the bucket the record lives in ({@code ?source=} of every
+ * telemetry route), derived from its resource the way ingest buckets it. A line from the merged
+ * log tail needs it to open its trace, which is read within one source (qits-2535).
  */
 public record TelemetryLogDto(
     long epochNanos,
@@ -24,6 +29,7 @@ public record TelemetryLogDto(
     String traceId,
     String spanId,
     String serviceName,
+    String source,
     Map<String, String> attributes,
     Map<String, String> resourceAttributes) {
 
@@ -36,6 +42,7 @@ public record TelemetryLogDto(
         log.traceId(),
         log.spanId(),
         log.serviceName(),
+        TelemetryStore.keyFor(log.resourceAttributes()),
         log.attributes(),
         log.resourceAttributes());
   }

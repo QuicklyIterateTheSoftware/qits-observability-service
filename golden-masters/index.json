@@ -301,6 +301,49 @@
       ]
     },
     {
+      "name": "telemetry from two platform services",
+      "slug": "telemetry-from-two-platform-services",
+      "params": {
+        "otherService": "qits-other",
+        "otherSource": "_service/qits-other",
+        "service": "qits-example",
+        "source": "_service/qits-example",
+        "traceId": "6a1f0c2b9d8e47f3a5b4c3d2e1f00a01"
+      },
+      "dependsOn": [],
+      "operations": [
+        {
+          "operationId": "listTelemetrySources",
+          "method": "GET",
+          "path": "/observability/api/telemetry/sources",
+          "status": 200,
+          "file": "telemetry-from-two-platform-services/listTelemetrySources.json",
+          "frozen": {
+            "ids": [],
+            "instants": [
+              "$.sources[*].oldestReceivedAt",
+              "$.sources[*].newestReceivedAt"
+            ],
+            "strings": [],
+            "listFilteredTo": null
+          }
+        },
+        {
+          "operationId": "searchTelemetryLogs",
+          "method": "GET",
+          "path": "/observability/api/telemetry/logs",
+          "status": 200,
+          "file": "telemetry-from-two-platform-services/searchTelemetryLogs.json",
+          "frozen": {
+            "ids": [],
+            "instants": [],
+            "strings": [],
+            "listFilteredTo": null
+          }
+        }
+      ]
+    },
+    {
       "name": "telemetry records of every kind",
       "slug": "telemetry-records-of-every-kind",
       "params": {

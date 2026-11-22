@@ -423,8 +423,21 @@ public class TelemetryQueryService {
             sinceMinutes,
             service,
             null,
+            null,
             Integer.MAX_VALUE)
         .items();
+  }
+
+  /**
+   * Which bucket the log tail reads: {@link #sourceKey} when the request names a source or the
+   * workspace pair, and null — every source, merged — when it names neither (qits-2534).
+   */
+  public static String logSourceKey(String source, String repoId, String workspaceId) {
+    boolean unnamed =
+        (source == null || source.isBlank())
+            && (repoId == null || repoId.isBlank())
+            && (workspaceId == null || workspaceId.isBlank());
+    return unnamed ? null : sourceKey(source, repoId, workspaceId);
   }
 
   /**
@@ -440,6 +453,10 @@ public class TelemetryQueryService {
    * 0 when an exporter stamped none, and 0 satisfies no floor — an unset record is not quietly
    * promoted into a band it never claimed. Those records are still there with no floor applied,
    * which is the default.
+   *
+   * <p><strong>A null {@code sourceKey} reads every source</strong>, merged into one tail ordered
+   * by record time (qits-2534): the default of the logs screen, where {@code service} is the filter
+   * that narrows it. {@code traceId} keeps one trace's records (qits-2535).
    */
   public Page<TelemetryLogDto> searchLogsIn(
       String sourceKey,
@@ -447,13 +464,16 @@ public class TelemetryQueryService {
       Integer sinceMinutes,
       String service,
       Integer minSeverity,
+      String traceId,
       int limit) {
     long cutoff = cutoff(sinceMinutes);
     String needle = query == null ? "" : query.toLowerCase(Locale.ROOT);
+    List<StoredLog> held = sourceKey == null ? store.allLogs() : store.logsIn(sourceKey);
     List<TelemetryLogDto> logs =
-        store.logsIn(sourceKey).stream()
+        held.stream()
             .filter(log -> log.receivedAtMillis() >= cutoff)
             .filter(log -> matchesService(service, log.serviceName()))
+            .filter(log -> traceId == null || traceId.isBlank() || traceId.equals(log.traceId()))
             .filter(log -> minSeverity == null || log.severityNumber() >= minSeverity)
             .filter(
                 log ->

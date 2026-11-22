@@ -162,6 +162,8 @@ components:
           type: string
         serviceName:
           type: string
+        source:
+          type: string
         attributes:
           type: object
           additionalProperties:
@@ -479,6 +481,10 @@ paths:
         in: query
         schema:
           type: string
+      - name: traceId
+        in: query
+        schema:
+          type: string
       - name: workspaceId
         in: query
         schema:
@@ -791,4 +797,4 @@ paths:
         - qits:agent
 info:
   title: qits-observability API
-  version: 2026.1018.155850
+  version: 2026.1122.90135

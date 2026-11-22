@@ -306,6 +306,21 @@ public class TelemetryStore {
     }
   }
 
+  /**
+   * Snapshot of every source's buffered log records, one bucket after the other, each bucket oldest
+   * first; the caller orders the merge. Each bucket's monitor is held only while it is copied, so
+   * this takes no lock order beyond the one {@link #logsIn} takes.
+   */
+  public List<StoredLog> allLogs() {
+    List<StoredLog> logs = new ArrayList<>();
+    for (WorkspaceBuffer buffer : buffers.values()) {
+      synchronized (buffer) {
+        logs.addAll(buffer.logs);
+      }
+    }
+    return logs;
+  }
+
   /** Snapshot of one source's metric series (latest point per series). Unknown key → empty. */
   public List<MetricPoint> metricsIn(String sourceKey) {
     WorkspaceBuffer buffer = buffers.get(sourceKey);
@@ -466,7 +481,7 @@ public class TelemetryStore {
   }
 
   /** Which bucket a record's resource attributes name. See the class javadoc for the three tiers. */
-  static String keyFor(Map<String, String> resourceAttributes) {
+  public static String keyFor(Map<String, String> resourceAttributes) {
     String repoId = resourceAttributes.get(REPOSITORY_ATTRIBUTE);
     String workspaceId = resourceAttributes.get(WORKSPACE_ATTRIBUTE);
     if (!isBlank(repoId) && !isBlank(workspaceId)) {
