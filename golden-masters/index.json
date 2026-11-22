@@ -102,6 +102,19 @@
           }
         },
         {
+          "operationId": "searchTelemetryLogs",
+          "method": "GET",
+          "path": "/observability/api/telemetry/logs",
+          "status": 200,
+          "file": "an-empty-telemetry-buffer/searchTelemetryLogs.json",
+          "frozen": {
+            "ids": [],
+            "instants": [],
+            "strings": [],
+            "listFilteredTo": null
+          }
+        },
+        {
           "operationId": "searchTelemetryRecords",
           "method": "POST",
           "path": "/observability/api/telemetry/records/search",

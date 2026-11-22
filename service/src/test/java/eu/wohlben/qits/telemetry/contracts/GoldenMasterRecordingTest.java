@@ -172,6 +172,8 @@ class GoldenMasterRecordingTest {
           new Interaction(TWO, "listTelemetrySources", "GET", API + "/sources", null, 200),
           new Interaction(EMPTY, "getTelemetryStore", "GET", API + "/store", null, 200),
           new Interaction(EMPTY, "listTelemetrySources", "GET", API + "/sources", null, 200),
+          // The landing Logs page's default read on an empty buffer: nothing at all (qits-2534).
+          new Interaction(EMPTY, "searchTelemetryLogs", "GET", API + "/logs", null, 200),
           // An unknown or evicted trace is an empty 200, never a 404; the landing trace page's
           // empty state (qits-2343).
           new Interaction(
