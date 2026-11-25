@@ -58,14 +58,14 @@
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
         <quarkus.platform.version>3.40.1</quarkus.platform.version>
-        <qits.auth-core.version>2026.1106.507</qits.auth-core.version>
+        <qits.auth-core.version>2026.1125.60148</qits.auth-core.version>
         <!-- Service-to-service HTTP that says who is calling: QitsHttpClients.wrap turns a raw
              java.net.http.HttpClient into one that opens a CLIENT span and sends traceparent plus
              X-Qits-Caller; the server filter (jandex-discovered off this jar alone) records an
              inbound caller on the server span. OtelForwarder's own client stays unwrapped
              (@RawHttpClient) — this service still takes the dependency so the server filter is
              active. Not released yet (qits-1198). -->
-        <qits.http-core.version>2026.1106.507</qits.http-core.version>
+        <qits.http-core.version>2026.1125.110206</qits.http-core.version>
         <!-- The user-story framework (test scope): the seven @UserStory classes under
              service/src/test/java/…/telemetry/stories (plus TelemetryBootstrapIT, which owns the
              boot) are written against it, so a run that boots the packaged artifact also
@@ -84,7 +84,7 @@
              golden masters and writes pacts/qits-observability-service_qits-idp-service.json.
              Exact pins: a newer recording is a deliberate bump. -->
         <qits.pact-consumer.version>2026.1106.507</qits.pact-consumer.version>
-        <qits.idp-golden-masters.version>2026.1123.194348</qits.idp-golden-masters.version>
+        <qits.idp-golden-masters.version>2026.1125.71255</qits.idp-golden-masters.version>
         <!-- THE PROVIDER HALF (ticket qits-1163): the first published
              `eu.wohlben.qits:<consumer>-pacts-qits-observability-service` jar,
              `pacts/qits-system-runner-daemon_qits-runner-javalib_qits-observability-service.json`
