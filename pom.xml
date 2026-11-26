@@ -120,10 +120,10 @@
              changed pact. -->
         <!-- qits-platform-access-cli's `qits observe` (ticket qits-1149):
              `pacts/qits-platform-access-cli_qits-observability-service.json`. -->
-        <qits.platform-access-monorepo-pacts-qits-observability-service.version>2026.1122.155703</qits.platform-access-monorepo-pacts-qits-observability-service.version>
+        <qits.platform-access-monorepo-pacts-qits-observability-service.version>2026.1126.72028</qits.platform-access-monorepo-pacts-qits-observability-service.version>
         <!-- qits-landing-app's Observability › Logs page (ticket qits-2313): listTelemetrySources and
              searchTelemetryLogs, `pacts/qits-landing-app_qits-observability-service.json`. -->
-        <qits.landing-app-pacts-qits-observability-service.version>2026.1123.90130</qits.landing-app-pacts-qits-observability-service.version>
+        <qits.landing-app-pacts-qits-observability-service.version>2026.1126.62952</qits.landing-app-pacts-qits-observability-service.version>
         <qits.system-runner-daemon-pacts-qits-observability-service.version>2026.1124.34519</qits.system-runner-daemon-pacts-qits-observability-service.version>
         <pact.version>4.6.21</pact.version>
         <qits.maven.repository.url>https://registry.qits.wohlben.eu/artifacts/maven/maven</qits.maven.repository.url>
