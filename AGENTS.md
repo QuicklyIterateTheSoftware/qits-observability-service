@@ -37,14 +37,19 @@ Two consequences worth stating before you reach for a dependency or a static fie
 
 ## Package and module conventions
 
-`eu.wohlben.qits.telemetry.*`, one maven module, sub-packages `api` / `control` / `dto` /
-`error`. The module directory is `service/` and the artifactId is `qits-telemetry`; they disagree on
-purpose (see the poms' header comments — directories are the git-history anchor, artifactIds are the
-settled name).
+`eu.wohlben.qits.telemetry.*`, two maven modules. `service/` (artifactId `qits-telemetry`) holds
+sub-packages `api` / `control` / `dto` / `error`; the directory and the artifactId disagree on purpose
+(see the poms' header comments — directories are the git-history anchor, artifactIds are the settled
+name).
 
-There is no `domain/` module and no reason to add one: nothing here is persisted, so the usual split
-(framework-free entities + persistence + Flyway in `domain`, web stack in `service`) has nothing to
-separate. If this context ever grows a table, split it then.
+`domain/` (artifactId `qits-telemetry-domain`) arrived with this context's first tables, the error
+issues of epic qits-2538, and is the usual split: framework-free records and the rules they change by
+in `…telemetry.issues` (`ErrorIssue`, `ErrorIssueDelta`, `ErrorIssues`), the JPA entities in
+`…issues.entity`, `ErrorIssueStore` in `…issues.persistence`, and the Flyway lineage in
+`db/observability/migration`. No web stack, no scheduler and no OTLP there: the aggregator that feeds
+the store and the doors that read it are `service`'s. The datasource, persistence-unit and Flyway
+keys stay in service's `application.properties` with every other app-level key, so the suite
+inherits what ships. A new table goes in `domain/` as the next `V<n>__*.sql`, never by editing V1.
 
 `api/` holds JAX-RS. `control/` holds the store, the decoder and the query service, and stays free
 of JAX-RS annotations so it can be unit-tested without booting Quarkus — `TelemetryStoreTest` and
@@ -59,10 +64,40 @@ For the two existing ports the documented behaviour is **fail closed**, not "ski
 are cross-project isolation boundaries. A future port that only enriches a response may of course
 degrade gracefully instead; say which in its javadoc.
 
-Never add a JPA relation to another context's entity, and never add an entity here at all without
-first re-reading "Owns no tables" in the README. Telemetry references repositories and workspaces by
-the string ids an exporter stamped into its resource attributes; those ids are not validated at
-ingest and are not foreign keys.
+Never add a JPA relation to another context's entity, and never add an entity without first
+re-reading "Error issues" in the README: the buffer stays in memory, and an entity must be exposed
+by a door (`EntityExposureTest`, `docs/entities.json`) or carry `@Technical` with a reason.
+Telemetry references repositories and workspaces by the string ids an exporter stamped into its
+resource attributes; those ids are not validated at ingest and are not foreign keys.
+
+## Error issues
+
+README "Error issues" is the behaviour. The rules that keep it true:
+
+- **Ingest never waits on the database.** The hook is `aggregator.offer(decoded)` in
+  `OtelReceiverResource.logs()`, after `store.addLogs` and `liveFeed.publishLogs`. `offer` takes one
+  short in-memory lock, touches no database and never throws; the flush writes on its own schedule.
+  Keep any new work on the write path inside the flush, never in `offer`.
+- **WARN, never ERROR, anywhere on that path.** This service's own ERROR logs feed its own issues, so
+  an ERROR about a failed flush would feed itself. The aggregator's WARN is throttled to once a
+  minute; keep new log lines on the path DEBUG or a throttled WARN.
+- **The flush transaction is the events seam.** `ErrorIssueFlushTransaction.write` runs
+  `ErrorIssueStore.apply` and then `ErrorIssueAnnouncer.announce(FlushOutcome)` in one transaction.
+  `FlushOutcome.opened()` are the inserted issues, `regressed()` the DISMISSED ones reopened (with the
+  regressing occurrence's time and version). qits-2684 publishes there through the eventstream outbox.
+- **The rules are plain functions** (`issues/ErrorIssues`: `open`, `merge`, `dismiss`), so
+  `ErrorIssueAggregatorTest` proves the fold, the cap, the hours and the regression over an
+  in-memory sink with no Quarkus. Instants are cut to the microsecond before they are stored or
+  answered, because that is what `timestamptz` keeps.
+- **The persistence unit may be inactive** (`%dev`). `ErrorIssueStore` holds its `EntityManager` as an
+  `InjectableInstance` and answers `active()`; inject the store, never the manager, in anything that
+  must boot in `%dev`. `ErrorIssuesWithoutDatabaseTest` is that profile.
+- **Tests**: `testdb/EmbeddedPg` is one zonky postgres per test JVM, handed to every `@QuarkusTest` by
+  `EmbeddedPgConfigSource` and to the launched artifact by `StoryProfile` / `EmbeddedPgResource`.
+  `%test` switches the flush and purge schedules off: call `aggregator.flush()` / `purge.purge()`.
+  `testdb/ErrorIssueTables` empties the tables and reads rows back by SQL. The provider state
+  `stored error issues` seeds three issues through the store; the first one's id,
+  `0123456789abcdef0123456789abcdef`, is named by qits-projects' own state, so do not change it.
 
 ## The buffer
 
@@ -190,16 +225,17 @@ change it there first, and on both sides.
   shadow it, so the suite exercises the values that actually ship. Never re-declare an app-level key
   in test resources: the copy drifts, and the suite goes on asserting `/observability/*` while the
   packaged process serves something else. `src/test/resources/application.properties` is for values
-  a test run genuinely needs to be *different*, and today there are none.
+  a test run genuinely needs to be *different*; today that is Flyway's `clean-at-start` for the test
+  database, beside the test-harness lines.
 - `OpenApiSchemaExportTest` writes `docs/openapi.yml` as a side effect. Regenerate and commit it
   whenever the REST surface changes:
 
-      ./mvnw -pl service test -Dtest=OpenApiSchemaExportTest
+      ./mvnw -pl service -am test -Dtest=OpenApiSchemaExportTest -Dsurefire.failIfNoSpecifiedTests=false
 
   It runs as a `@QuarkusTest`, so **the test classpath is indexed too**: any `@Path` resource under
   `src/test` lands in the committed document unless it is `@Operation(hidden = true)`. That is why
   `IdentityEchoResource` carries the annotation. The document should hold exactly the nine
-  telemetry query operations — ingest is hidden on purpose.
+  telemetry query operations and the three error-issue ones — ingest is hidden on purpose.
 
   Response records nested in the controller generate as `Response`, `Response1`, `Response2`… and a
   generated client inherits those names, so each carries `@Schema(name = …)`. Give any new one a
@@ -258,8 +294,9 @@ Playwright never launches anything and no browser is downloaded.
   type *bare*, because `OtelForwarder` relays what it received and a RestAssured charset would make
   the tee assertion be about the test), and the label helpers, which scrub through the very function
   the tap uses so an assertion and an observation cannot disagree.
-- **`StoryProfile`** — one launched process for the whole catalogue. Two runtime keys and nothing
-  else, because a qits-observability deployment is a process and two addresses.
+- **`StoryProfile`** — one launched process for the whole catalogue. The database triple and two
+  runtime keys and nothing else, because a qits-observability deployment is a process, a database
+  and two addresses.
 - **`StoryParent`** — the parent collector, purpose-built. It **replaced `qits-service-mock`'s
   `MockService`**, and the dependency went with it: a canned-JSON mock keyed on an exact
   `METHOD path` pair cannot answer OTLP protobuf, and cannot be armed from a story method's

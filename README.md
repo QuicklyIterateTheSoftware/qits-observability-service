@@ -34,17 +34,20 @@ gateway constant belongs to the gateway.
 
 | Path | What |
 |---|---|
-| `service/` | The whole context, artifactId `qits-telemetry`. |
+| `domain/` | The error issues (epic qits-2538), artifactId `qits-telemetry-domain`: the records and rules (`…/issues/`), the two JPA entities (`…/issues/entity/`), `ErrorIssueStore` (`…/issues/persistence/`) and the `observability` Flyway lineage (`db/observability/migration`). Internal, never published. |
+| `service/` | Everything else, artifactId `qits-telemetry`: the receiver, the buffer, the web stack. |
 | `service/src/main/webui/` | The SPA, as the `qits-observability-frontend` submodule. Built and served by Quinoa. |
-| `…/api/` | `OtelReceiverResource` (OTLP ingest), `OtelForwarder` (the upstream tee), `WorkspaceTelemetryController` (the UI's JSON), `TelemetryExceptionMapper`. |
-| `…/control/` | `TelemetryDecoder` (protobuf → records), `TelemetryStore` (the buffer), `TelemetryQueryService` (every query the REST surface answers from), `TelemetrySizeEstimator`, `TelemetryChangePublisher`. |
+| `…/api/` | `OtelReceiverResource` (OTLP ingest), `OtelForwarder` (the upstream tee), `WorkspaceTelemetryController` (the UI's JSON), `ErrorIssueController` (the error issues), `TelemetryExceptionMapper`. |
+| `…/control/` | `TelemetryDecoder` (protobuf → records), `TelemetryStore` (the buffer), `TelemetryQueryService` (every query the REST surface answers from), `ErrorFingerprinter`, `ErrorIssueAggregator` and its flush, `ErrorIssuePurge`, `TelemetrySizeEstimator`, `TelemetryChangePublisher`. |
 | `…/dto/` | The stored records and the wire DTOs. |
 | `…/error/` | This context's own `DomainException` family (migration-plan.md §5). |
 
-One module, not the usual `domain/` + `service/` pair. This is the only qits context whose business
-logic already lived entirely in the monorepo's `service` module (migration-plan.md §3.6) — there is
-no `domain/telemetry` to replay. The directory is still called `service/` because the replayed git
-history is anchored to `service/src/**`.
+The usual `domain/` + `service/` pair, since epic qits-2538. For most of its life this was one
+module: the only qits context whose business logic already lived entirely in the monorepo's `service`
+module (migration-plan.md §3.6), with nothing persisted to split out. The error issues are its first
+tables, and `domain/` is where they, their store and their Flyway lineage live; the buffer and the web
+stack stay in `service/`. The directory is still called `service/` because the replayed git history is
+anchored to `service/src/**`.
 
 **An application, not a library jar.** `service/` carries `<packaging>quarkus</packaging>` and
 produces a process that receives OTLP on its own port — as a JVM fast-jar or as a native binary. It
@@ -94,7 +97,7 @@ UI from here rather than from a second container.
 
 ## What it owns, and what it deliberately does not
 
-**Owns no tables, and no datasource.** `TelemetryStore` is in-memory and ephemeral by design — a JVM
+**The buffer owns no tables.** `TelemetryStore` is in-memory and ephemeral by design — a JVM
 restart empties it, and `…/telemetry/store` reports `startedAt` so a UI can say so rather than
 letting an empty screen read as broken. Bounding is three-tier: per-source count caps (spans / logs /
 metric series), then a per-source byte budget — the tier that decides what a source retains, from
@@ -138,10 +141,58 @@ bucket, which defeated the fairness tier above and put the whole platform's tele
 query could name. Splitting them multiplied the worst-case retained set, which is why the span cap
 dropped from 5,000 to 2,000 in the same change.
 
+**The error issues are the one durable thing**, and the next section is about them. They are this
+context's only tables, in a postgres database of its own.
+
+## Error issues
+
+Epic qits-2538. Every ERROR log from a platform service (ERROR or worse, a `service.name`, no
+`qits.workspace.id`) is fingerprinted at ingest (see *Error fingerprints* below) and folded into a
+durable **error issue**, keyed by that fingerprint. Issues survive restarts and buffer eviction; the
+log lines behind them do not, and are found while they are buffered by `logs?fingerprint=`.
+
+**Storage.** The `observability` datasource, persistence unit and Flyway lineage
+(`domain/…/db/observability/migration`, `V1__error_issues.sql`): `error_issue`, one row per
+fingerprint (state, service, exception type, location, title, newest samples, first/last seen and
+version, occurrences, regressions, dismiss history), and `error_issue_hour`, its per-hour counts.
+`.config/qits/deployments.yml` declares `postgresql:db`, so the deployment injects
+`QITS_RESOURCE_DB_URL` / `_USERNAME` / `_PASSWORD`, which have no defaults: unset, a deployed process
+refuses to boot. It also declares `postgresql:eventstream:qits_observability_eventstream`, the
+eventstream outbox the issue events will use (qits-2684).
+
+**Ingest never waits on the database.** `OtelReceiverResource` hands each stamped log batch to
+`control/ErrorIssueAggregator` last, after the store and the live feed. `offer` folds it into an
+in-memory window by fingerprint and returns; every `qits.observability.error-issues.flush-interval`
+(10s) the window is written in one transaction (`ErrorIssueFlushTransaction`). A crash loses at most
+one window of counts, which is accepted. At most `.max-pending` (1000) distinct fingerprints are held
+per window; the rest, and a window whose write failed, are dropped and counted, with a WARN at most
+once a minute — never an ERROR, which would feed this service's own issues.
+
+**States.** A new fingerprint is an OPEN issue. A person dismisses it. A DISMISSED issue whose
+fingerprint occurs again is OPEN again, with `regressions + 1` and `regressedAt`, and keeps
+`dismissedAt` / `dismissedBy` as history. Issues never expire (owner ruling 2026-11-22). Hourly
+counts are kept `.hour-retention` (`P30D`) and purged by an hourly job (`.purge-interval`, `1h`);
+an issue's total and first/last seen are never purged.
+
+| operationId | Route | Roles | Answers |
+|---|---|---|---|
+| `listErrorIssues` | `GET /observability/api/error-issues` | the telemetry readers | `{issues, total, truncated}`, newest `lastSeen` first; `?state=OPEN` (default) / `DISMISSED` / `ALL`, `?service=` (exact), `?limit=` 1–1000 (default 200) |
+| `getErrorIssue` | `GET …/error-issues/{fingerprint}` | the telemetry readers | every list field plus `sampleStacktrace` and `hourly` (`[{hour, count}]`, oldest first, zero hours left out) over `?hours=` 1–720 (default 168); 404 unknown, 400 for an id not `^[0-9a-f]{32}$` |
+| `dismissErrorIssue` | `POST …/error-issues/{fingerprint}/dismiss` | `qits:admin`, `qits:admin-agent`, `qits:desk-admin` | the issue; idempotent; 404 unknown. A commissioned agent (`qits:agent`) is 403: a person dismisses. |
+
+Tickets made from an issue are not in these answers: they live in qits-projects. `GET
+…/telemetry/errors` (`listTelemetryErrors`) is unchanged — the derived by-trace view for `qits
+observe errors`.
+
+**`%dev` has no database**, and still boots and ingests: the datasource, the persistence unit and
+Flyway are switched off there, the aggregator holds nothing, and the three doors answer 503. Dev
+services are off in every profile. The suite runs against a real postgres from zonky's embedded
+binaries (`service/src/test/…/testdb/EmbeddedPg`), a child process rather than a container.
+
 ## The boundary
 
-This context needs nothing from the rest of qits: ingest, the store and the REST query surface
-work standalone. Cross-context references are by string id, never a foreign key. Agents read
+This context needs nothing from the rest of qits but its own postgres database (for the error
+issues): ingest, the store and the REST query surface work standalone. Cross-context references are by string id, never a foreign key. Agents read
 telemetry through the qits CLI, which calls the REST surface.
 
 In the other direction this context publishes `TelemetryChanged(repoId, workspaceId)` as a CDI async
@@ -176,6 +227,10 @@ file before adding anything here; it explains why each line is load-bearing.
 
 What is still the deployment's to provide:
 
+- the error-issue database: `QITS_RESOURCE_DB_URL` / `_USERNAME` / `_PASSWORD`, which
+  qits-deployments provisions and injects because `.config/qits/deployments.yml` declares
+  `postgresql:db`. There are no defaults; see [Error issues](#error-issues).
+
 - allow-list `/observability/api/otel/v1/*` for unauthenticated access. That is the ingest surface,
   and the exporters hitting it are SDKs inside workspace containers, not sessions. In the monorepo
   this lives in `auth/core`'s `PublicPaths`; under the gateway it is `PublicPaths` there.
@@ -199,6 +254,7 @@ by SDKs, not something a generated client calls; everything else is in `docs/ope
 | `GET …/telemetry/traces/{traceId}` | one trace's spans and its correlated logs |
 | `GET …/telemetry/{errors,slow-spans,logs,metrics}` | as before |
 | `POST …/telemetry/records/search` | the live stream asked about the past — see [Searching the buffer](#searching-the-buffer) |
+| `GET …/error-issues`, `GET …/error-issues/{fingerprint}`, `POST …/error-issues/{fingerprint}/dismiss` | the stored error issues — see [Error issues](#error-issues) |
 
 **Naming a bucket.** Every query above takes either `?source=<key>` or the original
 `?repositoryId=&workspaceId=` pair, and `source` wins when both are given. The key comes from
