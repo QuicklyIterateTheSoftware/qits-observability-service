@@ -244,6 +244,10 @@ public class WorkspaceTelemetryController {
    * merged by record time into one tail (qits-2534); {@code service} then narrows it to one
    * service. Each line names its {@code source}, so it can open its trace. {@code traceId} keeps
    * one trace's lines (qits-2535).
+   *
+   * <p>{@code fingerprint} keeps the lines of one error issue: an exact match on the {@code
+   * qits.error.fingerprint} attribute the receiver stamps at ingest (epic qits-2538), ANDed with
+   * the other params. A value that is not 32 lower-case hex characters is a 400.
    */
   @GET
   @Path("/logs")
@@ -256,6 +260,7 @@ public class WorkspaceTelemetryController {
       @QueryParam("service") String service,
       @QueryParam("minSeverity") String minSeverity,
       @QueryParam("traceId") String traceId,
+      @QueryParam("fingerprint") String fingerprint,
       @QueryParam("sinceMinutes") Integer sinceMinutes,
       @QueryParam("limit") @DefaultValue("" + DEFAULT_LIMIT) int limit) {
     TelemetryQueryService.Page<TelemetryLogDto> page =
@@ -266,6 +271,7 @@ public class WorkspaceTelemetryController {
             service,
             TelemetryQueryService.severityFloor(minSeverity),
             traceId,
+            TelemetryQueryService.fingerprintFilter(fingerprint),
             checkedLimit(limit));
     return new SearchTelemetryLogsRequest.Response(page.items(), page.total(), page.truncated());
   }

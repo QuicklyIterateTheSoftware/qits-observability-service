@@ -373,6 +373,21 @@ public class TelemetryQueryService {
           "FATAL", 21);
 
   /**
+   * The logs route's {@code fingerprint} param: null when absent or empty, the value itself when it
+   * is shaped like a fingerprint, and a 400 otherwise — an exact match on a malformed value would
+   * silently answer nothing, which reads as "this issue has no lines".
+   */
+  public static String fingerprintFilter(String fingerprint) {
+    if (fingerprint == null || fingerprint.isEmpty()) {
+      return null;
+    }
+    if (!ErrorFingerprinter.isFingerprint(fingerprint)) {
+      throw new BadRequestException("fingerprint must be 32 lower-case hex characters");
+    }
+    return fingerprint;
+  }
+
+  /**
    * The severity floor a caller named, or null for "every severity", which is the default.
    *
    * <p>Takes either a band name ({@code TRACE}/{@code DEBUG}/{@code INFO}/{@code WARN}/{@code
@@ -424,6 +439,7 @@ public class TelemetryQueryService {
             service,
             null,
             null,
+            null,
             Integer.MAX_VALUE)
         .items();
   }
@@ -456,7 +472,8 @@ public class TelemetryQueryService {
    *
    * <p><strong>A null {@code sourceKey} reads every source</strong>, merged into one tail ordered
    * by record time (qits-2534): the default of the logs screen, where {@code service} is the filter
-   * that narrows it. {@code traceId} keeps one trace's records (qits-2535).
+   * that narrows it. {@code traceId} keeps one trace's records (qits-2535), and {@code
+   * fingerprint} one error issue's ({@link ErrorFingerprinter#FINGERPRINT_ATTRIBUTE}, qits-2538).
    */
   public Page<TelemetryLogDto> searchLogsIn(
       String sourceKey,
@@ -465,6 +482,7 @@ public class TelemetryQueryService {
       String service,
       Integer minSeverity,
       String traceId,
+      String fingerprint,
       int limit) {
     long cutoff = cutoff(sinceMinutes);
     String needle = query == null ? "" : query.toLowerCase(Locale.ROOT);
@@ -474,6 +492,11 @@ public class TelemetryQueryService {
             .filter(log -> log.receivedAtMillis() >= cutoff)
             .filter(log -> matchesService(service, log.serviceName()))
             .filter(log -> traceId == null || traceId.isBlank() || traceId.equals(log.traceId()))
+            .filter(
+                log ->
+                    fingerprint == null
+                        || fingerprint.equals(
+                            log.attributes().get(ErrorFingerprinter.FINGERPRINT_ATTRIBUTE)))
             .filter(log -> minSeverity == null || log.severityNumber() >= minSeverity)
             .filter(
                 log ->

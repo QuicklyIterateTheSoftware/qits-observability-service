@@ -2,9 +2,11 @@ package eu.wohlben.qits.telemetry.api;
 
 import static io.restassured.RestAssured.given;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import eu.wohlben.qits.telemetry.TelemetryFixtures;
+import eu.wohlben.qits.telemetry.control.ErrorFingerprinter;
 import eu.wohlben.qits.telemetry.control.TelemetryStore;
 import eu.wohlben.qits.telemetry.dto.MetricPoint;
 import eu.wohlben.qits.telemetry.dto.StoredLog;
@@ -87,6 +89,9 @@ class OtelReceiverResourceTest {
     assertEquals(1, logs.size());
     assertEquals("it broke", logs.getFirst().body());
     assertTrue(logs.getFirst().isError());
+    // Workspace telemetry feeds no error issue, so the receiver stamps no fingerprint on it.
+    assertFalse(
+        logs.getFirst().attributes().containsKey(ErrorFingerprinter.FINGERPRINT_ATTRIBUTE));
   }
 
   @Test

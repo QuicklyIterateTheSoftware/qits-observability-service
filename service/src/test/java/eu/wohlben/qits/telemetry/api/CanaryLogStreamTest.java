@@ -4,12 +4,15 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import eu.wohlben.qits.telemetry.TelemetryFixtures;
+import eu.wohlben.qits.telemetry.control.ErrorFingerprinter;
 import eu.wohlben.qits.telemetry.control.TelemetryStore;
 import io.quarkus.test.common.http.TestHTTPResource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -159,6 +162,61 @@ class CanaryLogStreamTest {
     // The buffer reports it kept both — a non-zero eviction counter is the difference between
     // "this is everything that arrived" and "this is what survived".
     given().get(QUERY + "/store").then().statusCode(200).body("evictedLogs", equalTo(0));
+  }
+
+  /**
+   * The ERROR is stamped with its error-issue fingerprint at ingest and the INFO is not (epic
+   * qits-2538); the logs route answers the stamp, filters on it exactly, and refuses a value that
+   * is not shaped like one.
+   */
+  @Test
+  void theErrorCarriesItsFingerprintAndTheLogsRouteFiltersOnIt() {
+    postCanaryLogs();
+    String fingerprint =
+        given()
+            .get(QUERY + "/logs?source=" + SOURCE)
+            .then()
+            .statusCode(200)
+            .body("logs[0].attributes", not(hasKey(ErrorFingerprinter.FINGERPRINT_ATTRIBUTE)))
+            .body(
+                "logs[1].attributes.'" + ErrorFingerprinter.FINGERPRINT_ATTRIBUTE + "'",
+                matchesPattern("[0-9a-f]{32}"))
+            .extract()
+            .path("logs[1].attributes.'" + ErrorFingerprinter.FINGERPRINT_ATTRIBUTE + "'");
+    // The stamp is the fingerprint of the stored record: the canary's first in-app frame.
+    assertEquals(
+        "eu.wohlben.qits.canary.CanaryResource.callWidgets",
+        new ErrorFingerprinter()
+            .fingerprint(
+                store.logsIn(SOURCE).stream().filter(l -> l.isError()).findFirst().orElseThrow())
+            .location());
+
+    given()
+        .get(QUERY + "/logs?fingerprint=" + fingerprint)
+        .then()
+        .statusCode(200)
+        .body("logs", hasSize(1))
+        .body("logs[0].body", equalTo(ERROR_BODY));
+    // ANDed with the other params.
+    given()
+        .get(QUERY + "/logs?fingerprint=" + fingerprint + "&service=qits-other")
+        .then()
+        .statusCode(200)
+        .body("logs", hasSize(0));
+    given()
+        .get(QUERY + "/logs?fingerprint=" + "0".repeat(32))
+        .then()
+        .statusCode(200)
+        .body("logs", hasSize(0));
+
+    given().get(QUERY + "/logs?fingerprint=NOT-A-FINGERPRINT").then().statusCode(400);
+    given().get(QUERY + "/logs?fingerprint=" + fingerprint.toUpperCase()).then().statusCode(400);
+    // An empty value is no filter at all, as an empty traceId is.
+    given()
+        .get(QUERY + "/logs?fingerprint=&source=" + SOURCE)
+        .then()
+        .statusCode(200)
+        .body("logs", hasSize(2));
   }
 
   /**

@@ -211,6 +211,16 @@ one tail, and `?service=` is what narrows it to one service. Every log line name
 (the bucket key), so a line from the merged tail can open its trace. `?traceId=` keeps one
 trace's lines.
 
+**Error fingerprints (epic qits-2538).** At ingest, after decoding and before the store takes the
+batch, `OtelReceiverResource` stamps `qits.error.fingerprint` on every log that is ERROR or worse,
+names a `service.name` and carries no `qits.workspace.id` (`control/ErrorFingerprinter`; the tee
+relays the exporter's bytes untouched). The fingerprint is 32 lower-case hex characters keyed on
+the service, `exception.type`, the class and method of the first in-app frame
+(`qits.observability.error-issues.in-app-prefixes`, comma-separated, default `eu.wohlben.qits.`)
+and, where either is missing, the normalised body — never the line number or the version.
+`?fingerprint=` on `logs` keeps one fingerprint's lines, ANDed with the other params; a value not
+matching `^[0-9a-f]{32}$` is a 400.
+
 **The narrowing lenses are the service's, not a screen's.** `?service=` narrows every query above to
 one reporting service, `?sinceMinutes=` windows on the ingest stamp, and on `logs` `?minSeverity=`
 is a floor on the OTel severity — `TRACE`/`DEBUG`/`INFO`/`WARN`/`ERROR`/`FATAL` (case-insensitive,

@@ -3,6 +3,7 @@ package eu.wohlben.qits.telemetry.api;
 import com.google.protobuf.InvalidProtocolBufferException;
 import eu.wohlben.qits.telemetry.error.BadRequestException;
 import eu.wohlben.qits.telemetry.error.PayloadTooLargeException;
+import eu.wohlben.qits.telemetry.control.ErrorFingerprinter;
 import eu.wohlben.qits.telemetry.control.TelemetryDecoder;
 import eu.wohlben.qits.telemetry.control.TelemetryLiveFeed;
 import eu.wohlben.qits.telemetry.control.TelemetryStore;
@@ -100,6 +101,13 @@ public class OtelReceiverResource {
   @Inject OtelForwarder forwarder;
 
   /**
+   * Stamps {@value ErrorFingerprinter#FINGERPRINT_ATTRIBUTE} on every decoded log that feeds an
+   * error issue, before the store sizes and keeps it (epic qits-2538). The tee is not touched: it
+   * relays the exporter's bytes, which carry no fingerprint.
+   */
+  @Inject ErrorFingerprinter fingerprinter;
+
+  /**
    * The live stream. Handed each decoded batch right after the store took it; it returns at once and
    * never throws, so ingest does not wait on a socket.
    */
@@ -129,7 +137,8 @@ public class OtelReceiverResource {
       byte[] body) {
     forwarder.forward("logs", contentType, contentEncoding, body);
     ExportLogsServiceRequest request = parse(body, ExportLogsServiceRequest::parseFrom);
-    List<StoredLog> decoded = decoder.decodeLogs(request, System.currentTimeMillis());
+    List<StoredLog> decoded =
+        fingerprinter.stamp(decoder.decodeLogs(request, System.currentTimeMillis()));
     store.addLogs(decoded);
     liveFeed.publishLogs(decoded);
     return ExportLogsServiceResponse.getDefaultInstance().toByteArray();

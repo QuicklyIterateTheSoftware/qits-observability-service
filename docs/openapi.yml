@@ -450,6 +450,10 @@ paths:
     get:
       operationId: searchTelemetryLogs
       parameters:
+      - name: fingerprint
+        in: query
+        schema:
+          type: string
       - name: limit
         in: query
         schema:
