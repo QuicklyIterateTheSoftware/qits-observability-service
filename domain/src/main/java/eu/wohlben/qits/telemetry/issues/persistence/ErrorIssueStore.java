@@ -36,8 +36,8 @@ import java.util.Optional;
  * inactive.
  *
  * <p>Every method is {@code @Transactional} and joins a caller's transaction: {@link #apply} is
- * called inside the aggregator's flush transaction, so whatever else that transaction writes (the
- * events outbox, qits-2684) commits or fails with the issue rows.
+ * called inside the aggregator's flush transaction, so whatever else that transaction does (the
+ * events qits-2684 publishes once it commits) succeeds or fails with the issue rows.
  */
 @ApplicationScoped
 public class ErrorIssueStore {

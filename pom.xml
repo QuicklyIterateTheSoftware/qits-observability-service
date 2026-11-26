@@ -89,6 +89,17 @@
              DatasourceBaselineTest rule that fails the build when a line of that block is missing.
              Same pin qits-mirror carries. -->
         <qits.db-core.version>2026.1107.191249</qits.db-core.version>
+        <!-- THE PLATFORM EVENT BUS (qits-eventstream, epic qits-2538 task qits-2684), released out
+             of components/qits-eventstream/qits-eventstream-javalib. This service PUBLISHES two
+             events and subscribes to nothing: ErrorIssueOpened and ErrorIssueRegressed, written by
+             control/ErrorIssueAnnouncer once the flush transaction that opened or reopened the
+             issue has committed. A RELEASED CALVER PIN, the one qits-maintenance and qits-ci carry.
+
+             The jar brings its own datasource, Flyway lineage and outbox table, which is why
+             .config/qits/deployments.yml declares `postgresql:eventstream:qits_observability_eventstream`,
+             and its own quarkus-oidc-client, which the `qits` client in application.properties
+             configures from the `idp:client` resource. -->
+        <qits.eventstream.version>2026.1125.142425</qits.eventstream.version>
         <!-- A REAL POSTGRES FOR THE SUITE WITHOUT DOCKER (epic qits-2538): zonky resolves postgres
              binaries as ordinary Maven artifacts and the suite spawns them as a child process. A
              clone must test green with no docker, and the error-issue schema still has to be
@@ -224,6 +235,21 @@
                 <groupId>au.com.dius.pact.consumer</groupId>
                 <artifactId>junit5</artifactId>
                 <version>${pact.version}</version>
+            </dependency>
+            <dependency>
+                <!-- The platform event bus client. Compile scope in `service/` only: the announcer
+                     is service's, and on `domain`'s classpath the jar would bring a second
+                     datasource to a module that has no use for it. -->
+                <groupId>${project.groupId}</groupId>
+                <artifactId>qits-eventstream</artifactId>
+                <version>${qits.eventstream.version}</version>
+            </dependency>
+            <dependency>
+                <!-- Test scope at every declaration site: the kit that pacts what qits-eventstream
+                     asks qits-events on this service's behalf (qits-1163), at the same version. -->
+                <groupId>${project.groupId}</groupId>
+                <artifactId>qits-eventstream-contracts</artifactId>
+                <version>${qits.eventstream.version}</version>
             </dependency>
             <dependency>
                 <!-- Test scope at every declaration site. -->

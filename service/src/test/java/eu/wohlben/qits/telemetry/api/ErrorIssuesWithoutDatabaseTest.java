@@ -17,7 +17,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * What {@code %dev} runs as: the {@code observability} datasource switched off, and with it the
- * persistence unit and Flyway. The process still boots and ingests; the aggregator holds nothing,
+ * persistence unit and Flyway — and the {@code eventstream} outbox aimed at no database, never
+ * migrated and never touched, since the bus is dark. The process still boots and ingests; the aggregator holds nothing,
  * the purge does nothing, and the error-issue doors answer 503.
  */
 @QuarkusTest
@@ -32,7 +33,12 @@ class ErrorIssuesWithoutDatabaseTest {
       return Map.of(
           "quarkus.datasource.observability.active", "false",
           "quarkus.hibernate-orm.observability.active", "false",
-          "quarkus.flyway.observability.active", "false");
+          "quarkus.flyway.observability.active", "false",
+          // And the event bus's outbox (qits-2684) as %dev has it: active, because the library
+          // injects its unit directly, but aimed at a port nothing listens on and never touched.
+          "quarkus.datasource.eventstream.jdbc.url", "jdbc:postgresql://localhost:1/none",
+          "quarkus.flyway.eventstream.migrate-at-start", "false",
+          "quarkus.hibernate-orm.eventstream.database.start-offline", "true");
     }
   }
 

@@ -18,5 +18,9 @@ contracts:
   # The consumer pacts this service writes (ticket qits-1149): IdpConsumerPactTest writes
   # pacts/qits-observability-service_qits-idp-service.json.
   pacts:
+    # Three-part: pacts/qits-observability-service_qits-eventstream-javalib_qits-events-service.json
+    # (qits-2684), what the qits-eventstream library asks qits-events on this service's behalf — the
+    # outbox's publish — written by contracts/EventstreamPactTest from the library's kit.
+    qits-events-service: { packages: [maven] }
     qits-idp-service: { packages: [maven] }
 userflows: qits-observability

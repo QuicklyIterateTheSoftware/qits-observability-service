@@ -10,8 +10,9 @@ import java.util.List;
 
 /**
  * One flush window, written in one transaction: the store folds it into the issue rows, then
- * {@link ErrorIssueAnnouncer} announces what that opened and reopened — in the same transaction,
- * so the issue rows and whatever the announcer writes commit together.
+ * {@link ErrorIssueAnnouncer} announces what that opened and reopened — inside the same
+ * transaction, which publishes the events only once it commits, so a rollback drops the issue rows
+ * and their events together.
  */
 @ApplicationScoped
 public class ErrorIssueFlushTransaction implements ErrorIssueSink {

@@ -133,6 +133,27 @@
             <artifactId>quarkus-quinoa</artifactId>
         </dependency>
         <dependency>
+            <!-- THE PLATFORM EVENT BUS (epic qits-2538, task qits-2684): control/ErrorIssueAnnouncer
+                 publishes ErrorIssueOpened / ErrorIssueRegressed through QitsEventBus. This
+                 service subscribes to nothing.
+
+                 IT ADDS A MANDATORY DEPLOYMENT RESOURCE. The jar opens a datasource of its own,
+                 `eventstream`, whose shipped defaults read QITS_RESOURCE_EVENTSTREAM_URL /
+                 _USERNAME / _PASSWORD — the triple .config/qits/deployments.yml's
+                 `postgresql:eventstream:qits_observability_eventstream` injects. An unset variable
+                 refuses the boot. Dark in %test does not change that: the suite hands out a second
+                 database (testdb/EmbeddedPgConfigSource), and %dev switches the datasource off. -->
+            <groupId>${project.groupId}</groupId>
+            <artifactId>qits-eventstream</artifactId>
+        </dependency>
+        <dependency>
+            <!-- contracts/EventstreamPactTest: the outbox's publish, which qits-eventstream makes of
+                 qits-events on this service's behalf (qits-1163). -->
+            <groupId>${project.groupId}</groupId>
+            <artifactId>qits-eventstream-contracts</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-junit5</artifactId>
             <scope>test</scope>

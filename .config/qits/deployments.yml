@@ -45,7 +45,13 @@ api-docs: /observability/q/swagger-ui
 # derived one is right: `qits_observability`.
 #
 # postgresql:eventstream:qits_observability_eventstream — THE EVENT BUS'S OUTBOX, named
-# `eventstream` because qits-eventstream reads that resource by name. Declared now, ahead of its
-# reader: the issue store's flush transaction is where ErrorIssueOpened / ErrorIssueRegressed will
-# be written (qits-2684, dossier page "Events on qits-events").
-resources: postgresql:db, postgresql:eventstream:qits_observability_eventstream
+# `eventstream` because qits-eventstream reads that resource by name: the outbox ErrorIssueOpened /
+# ErrorIssueRegressed go through once the issue store's flush has committed (qits-2684, dossier page
+# "Events on qits-events").
+#
+# idp:client — THIS APPLICATION'S OWN QITS-IDP SERVICE CLIENT (qits-2684), id
+# `dev-qits-observability` (derived from env + application), roles `qits:system`. The deployer
+# injects QITS_RESOURCE_IDP_URL / _CLIENT_ID / _CLIENT_SECRET, which the `qits` oidc client in
+# application.properties reads; qits-eventstream mints the bearer its PUT to qits-events carries
+# from it, and the edge answers a publish without one 401.
+resources: postgresql:db, postgresql:eventstream:qits_observability_eventstream, idp:client

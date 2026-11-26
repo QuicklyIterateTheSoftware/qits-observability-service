@@ -84,7 +84,17 @@ README "Error issues" is the behaviour. The rules that keep it true:
 - **The flush transaction is the events seam.** `ErrorIssueFlushTransaction.write` runs
   `ErrorIssueStore.apply` and then `ErrorIssueAnnouncer.announce(FlushOutcome)` in one transaction.
   `FlushOutcome.opened()` are the inserted issues, `regressed()` the DISMISSED ones reopened (with the
-  regressing occurrence's time and version). qits-2684 publishes there through the eventstream outbox.
+  regressing occurrence's time and version). `ErrorIssueAnnouncer` turns them into
+  `ErrorIssueOpened` / `ErrorIssueRegressed` (README "Events") and registers them with the
+  transaction, publishing through `QitsEventBus` only on commit — never call `bus.publish` straight
+  from inside the flush: its inline PUT and its `requiringNew` outbox row would outlive a rollback.
+  A new event record goes in `events/EventWireReflection` and its test in the same commit.
+- **The outbox datasource is always active.** qits-eventstream injects its `eventstream` unit
+  directly, so `%dev` cannot switch it off like the issue store; it starts offline and unmigrated
+  there instead. Every launched-process profile (`StoryProfile`, `EmbeddedPgResource`) hands out a
+  `QITS_RESOURCE_EVENTSTREAM_*` triple and keeps the bus dark; `EmbeddedPgConfigSource` gives the
+  suite a second database. `ErrorIssueAnnouncerTest` turns the bus on against a closed port and
+  reads the outbox rows.
 - **The rules are plain functions** (`issues/ErrorIssues`: `open`, `merge`, `dismiss`), so
   `ErrorIssueAggregatorTest` proves the fold, the cap, the hours and the regression over an
   in-memory sink with no Quarkus. Instants are cut to the microsecond before they are stored or
@@ -294,9 +304,9 @@ Playwright never launches anything and no browser is downloaded.
   type *bare*, because `OtelForwarder` relays what it received and a RestAssured charset would make
   the tee assertion be about the test), and the label helpers, which scrub through the very function
   the tap uses so an assertion and an observation cannot disagree.
-- **`StoryProfile`** — one launched process for the whole catalogue. The database triple and two
-  runtime keys and nothing else, because a qits-observability deployment is a process, a database
-  and two addresses.
+- **`StoryProfile`** — one launched process for the whole catalogue. The two database triples (the
+  issues and the events outbox, with the bus dark) and two runtime keys and nothing else, because a
+  qits-observability deployment is a process, its databases and two addresses.
 - **`StoryParent`** — the parent collector, purpose-built. It **replaced `qits-service-mock`'s
   `MockService`**, and the dependency went with it: a canned-JSON mock keyed on an exact
   `METHOD path` pair cannot answer OTLP protobuf, and cannot be armed from a story method's

@@ -158,7 +158,8 @@ version, occurrences, regressions, dismiss history), and `error_issue_hour`, its
 `.config/qits/deployments.yml` declares `postgresql:db`, so the deployment injects
 `QITS_RESOURCE_DB_URL` / `_USERNAME` / `_PASSWORD`, which have no defaults: unset, a deployed process
 refuses to boot. It also declares `postgresql:eventstream:qits_observability_eventstream`, the
-eventstream outbox the issue events will use (qits-2684).
+eventstream outbox the issue events go through, and `idp:client`, the service client their publish
+authenticates with (see *Events* below).
 
 **Ingest never waits on the database.** `OtelReceiverResource` hands each stamped log batch to
 `control/ErrorIssueAggregator` last, after the store and the live feed. `offer` folds it into an
@@ -185,19 +186,58 @@ Tickets made from an issue are not in these answers: they live in qits-projects.
 observe errors`.
 
 **`%dev` has no database**, and still boots and ingests: the datasource, the persistence unit and
-Flyway are switched off there, the aggregator holds nothing, and the three doors answer 503. Dev
-services are off in every profile. The suite runs against a real postgres from zonky's embedded
+Flyway are switched off there, the aggregator holds nothing, and the three doors answer 503. The
+outbox's datasource cannot be switched off the same way — qits-eventstream injects its persistence
+unit directly, and an inactive one fails the boot — so in `%dev` it stays active, aimed at a local
+postgres nothing has to run, with Flyway's migrate-at-start off and Hibernate started offline; the
+bus is dark, so nothing connects. Dev services are off in every profile. The suite runs against a real postgres from zonky's embedded
 binaries (`service/src/test/…/testdb/EmbeddedPg`), a child process rather than a container.
+
+### Events
+
+Epic qits-2538, task qits-2684. This service's first events on qits-events, published through the
+`qits-eventstream` library (`QitsEventBus`), in package `eu.wohlben.qits.telemetry.events`; the wire
+name is the simple class name.
+
+| Event | When | `occurredAt` / `serviceVersion` | Further fields |
+|---|---|---|---|
+| `ErrorIssueOpened` | a flush inserted the issue | its `firstSeen`, that occurrence's version | `fingerprint`, `serviceName`, `exceptionType`, `location`, `message`, `traceId` |
+| `ErrorIssueRegressed` | a flush turned a DISMISSED issue OPEN | the regressing occurrence's (the window's earliest) | the same, plus `dismissedAt`, `regressions` (after the write), `occurrences` (the total after the write) |
+
+`message` is the normalised title, at most 200 characters, so an event never carries a stack trace;
+`traceId` is the issue's newest sampled trace id and absent when there is none (the canonical
+payload drops a null). **Exactly one event per fingerprint per flush**, and nothing for a count
+increase on an OPEN issue.
+
+**A rollback drops the issue rows and their events together.** `ErrorIssueFlushTransaction` calls
+`control/ErrorIssueAnnouncer` inside the flush transaction, right after the store wrote the window.
+The announcer builds the events there and registers them with the transaction, publishing only once
+it has committed: `QitsEventBus.publish` attempts the PUT inline and writes an undelivered event to
+its outbox in a transaction of its own, so a publish made mid-transaction would outlive a rollback.
+After the commit the bus owns the event — delivered inline, or an outbox row its sweeper retries.
+
+**Configuration.** `qits.eventstream.enabled` ships on; `%dev` and `%test` turn it off. The outbox
+is the library's own datasource, persistence unit and Flyway lineage, `eventstream`, read from
+`QITS_RESOURCE_EVENTSTREAM_URL` / `_USERNAME` / `_PASSWORD` with no defaults. The publish carries a
+bearer from this service's own `qits` OIDC client (`quarkus.oidc-client.qits.*`, from the
+`idp:client` resource's `QITS_RESOURCE_IDP_*`); without one the edge answers 401 and the event waits
+in the outbox. `contracts/EventstreamPactTest` writes
+`pacts/qits-observability-service_qits-eventstream-javalib_qits-events-service.json`, declared for
+`qits-events-service` in `.config/qits/release.yml`. `events/EventWireReflection` registers both
+records for native-image. `control/ErrorIssueAnnouncerTest` reads the real outbox with the bus aimed
+at a closed port.
 
 ## The boundary
 
-This context needs nothing from the rest of qits but its own postgres database (for the error
-issues): ingest, the store and the REST query surface work standalone. Cross-context references are by string id, never a foreign key. Agents read
+This context needs nothing from the rest of qits but its own postgres databases (the error issues
+and the events outbox): ingest, the store and the REST query surface work standalone, and the issue
+events wait in the outbox while qits-events is not there. Cross-context references are by string id, never a foreign key. Agents read
 telemetry through the qits CLI, which calls the REST surface.
 
-In the other direction this context publishes `TelemetryChanged(repoId, workspaceId)` as a CDI async
-event whenever a scoped ingest fills a workspace's buffers (deduped — a 1000-span batch for one
-workspace is one event). An application that also runs the workspaces context bridges it to the SSE
+In the other direction this context publishes two things. The error-issue events go to qits-events
+(*Events* above). And `TelemetryChanged(repoId, workspaceId)` stays what it was, a same-process CDI
+async hint — it is not on qits-events, and nothing here moves it there. It fires whenever a scoped
+ingest fills a workspace's buffers (deduped — a 1000-span batch for one workspace is one event). An application that also runs the workspaces context bridges it to the SSE
 channel:
 
 ```java
@@ -230,6 +270,9 @@ What is still the deployment's to provide:
 - the error-issue database: `QITS_RESOURCE_DB_URL` / `_USERNAME` / `_PASSWORD`, which
   qits-deployments provisions and injects because `.config/qits/deployments.yml` declares
   `postgresql:db`. There are no defaults; see [Error issues](#error-issues).
+- the events outbox, `QITS_RESOURCE_EVENTSTREAM_*` (`postgresql:eventstream:qits_observability_eventstream`),
+  and the service client, `QITS_RESOURCE_IDP_*` (`idp:client`), both declared in the same file; see
+  [Events](#events). `QITS_DOMAIN` also names qits-events' public address.
 
 - allow-list `/observability/api/otel/v1/*` for unauthenticated access. That is the ingest surface,
   and the exporters hitting it are SDKs inside workspace containers, not sessions. In the monorepo
