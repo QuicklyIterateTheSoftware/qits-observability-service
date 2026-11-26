@@ -34,3 +34,18 @@ navigation-entries: platform.Observability:3
 # root, which sits under the primary route above. The shell's Api Docs viewer reads it off
 # /main-navigation and frames it for this repository.
 api-docs: /observability/q/swagger-ui
+
+# THIS APPLICATION'S FIRST DATABASES (epic qits-2538). Both are created on the tier's postgres before
+# the successor container starts.
+#
+# postgresql:db — the error issues (domain/, V1__error_issues.sql). Injected as
+# QITS_RESOURCE_DB_URL / _USERNAME / _PASSWORD, which application.properties maps onto
+# quarkus.datasource.observability.* with no defaults behind them: without this the container dies
+# at Flyway's migrate-at-start naming the missing variable. The name is not spelled because the
+# derived one is right: `qits_observability`.
+#
+# postgresql:eventstream:qits_observability_eventstream — THE EVENT BUS'S OUTBOX, named
+# `eventstream` because qits-eventstream reads that resource by name. Declared now, ahead of its
+# reader: the issue store's flush transaction is where ErrorIssueOpened / ErrorIssueRegressed will
+# be written (qits-2684, dossier page "Events on qits-events").
+resources: postgresql:db, postgresql:eventstream:qits_observability_eventstream

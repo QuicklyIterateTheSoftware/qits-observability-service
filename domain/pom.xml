@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>eu.wohlben.qits</groupId>
+        <artifactId>qits-observability</artifactId>
+        <version>2026.1126.15705</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <!-- The error-issue domain (epic qits-2538): this context's first tables. It holds the
+         framework-free records an issue is read and merged as (`eu.wohlben.qits.telemetry.issues`),
+         the two JPA entities (`…issues.entity`), the store over them (`…issues.persistence`) and
+         the `observability` Flyway lineage (db/observability/migration). NO web stack, no
+         scheduler, no knowledge of OTLP: the aggregator that feeds the store and the doors that
+         read it live in `service`.
+
+         The datasource, the persistence unit and the Flyway keys are in service's
+         application.properties, beside every other app-level key, so the suite inherits exactly
+         what ships. Internal, never published: `service` builds it from source.
+
+         The directory is `domain/` while the artifactId is `qits-telemetry-domain`: generic
+         coordinates would collide in the shared ~/.m2 every workspace container mounts. -->
+    <artifactId>qits-telemetry-domain</artifactId>
+    <name>qits-observability :: domain</name>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-arc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-hibernate-orm</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-jdbc-postgresql</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-flyway</artifactId>
+        </dependency>
+        <dependency>
+            <!-- Flyway 10 split its database support out of the core; without this the postgres
+                 lineage has no dialect and migrate-at-start fails at the first statement. -->
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+        <dependency>
+            <!-- PatientPgDriver, which the datasource block names as a string, and the entity
+                 exposure markers (qits-1945). -->
+            <groupId>${project.groupId}</groupId>
+            <artifactId>qits-db-core</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <!-- The consuming Quarkus app needs an index of this jar's beans and entities. -->
+                <groupId>io.smallrye</groupId>
+                <artifactId>jandex-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

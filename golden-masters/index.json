@@ -145,6 +145,85 @@
       ]
     },
     {
+      "name": "stored error issues",
+      "slug": "stored-error-issues",
+      "params": {
+        "dismissedFingerprint": "00112233445566778899aabbccddeeff",
+        "fingerprint": "0123456789abcdef0123456789abcdef",
+        "service": "qits-example",
+        "traceId": "6a1f0c2b9d8e47f3a5b4c3d2e1f00a01"
+      },
+      "dependsOn": [],
+      "operations": [
+        {
+          "operationId": "dismissErrorIssue",
+          "method": "POST",
+          "path": "/observability/api/error-issues/{fingerprint}/dismiss",
+          "status": 200,
+          "file": "stored-error-issues/dismissErrorIssue.json",
+          "frozen": {
+            "ids": [],
+            "instants": [
+              "$.firstSeen",
+              "$.lastSeen",
+              "$.dismissedAt"
+            ],
+            "strings": [],
+            "listFilteredTo": null
+          }
+        },
+        {
+          "operationId": "getErrorIssue",
+          "method": "GET",
+          "path": "/observability/api/error-issues/{fingerprint}",
+          "status": 200,
+          "file": "stored-error-issues/getErrorIssue.json",
+          "frozen": {
+            "ids": [],
+            "instants": [
+              "$.firstSeen",
+              "$.lastSeen",
+              "$.hourly[*].hour"
+            ],
+            "strings": [],
+            "listFilteredTo": null
+          }
+        },
+        {
+          "operationId": "listErrorIssues",
+          "method": "GET",
+          "path": "/observability/api/error-issues",
+          "status": 200,
+          "file": "stored-error-issues/listErrorIssues.json",
+          "frozen": {
+            "ids": [],
+            "instants": [
+              "$.issues[*].firstSeen",
+              "$.issues[*].lastSeen"
+            ],
+            "strings": [],
+            "listFilteredTo": null
+          }
+        },
+        {
+          "operationId": "searchTelemetryLogs",
+          "method": "GET",
+          "path": "/observability/api/telemetry/logs",
+          "query": {
+            "fingerprint": "{fingerprint}"
+          },
+          "status": 200,
+          "file": "stored-error-issues/searchTelemetryLogs.json",
+          "frozen": {
+            "ids": [],
+            "instants": [],
+            "strings": [],
+            "listFilteredTo": null
+          }
+        }
+      ]
+    },
+    {
       "name": "telemetry from one platform service",
       "slug": "telemetry-from-one-platform-service",
       "params": {

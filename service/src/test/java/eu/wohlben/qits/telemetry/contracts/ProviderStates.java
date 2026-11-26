@@ -5,8 +5,13 @@ import static eu.wohlben.qits.telemetry.TelemetryFixtures.spanBuilder;
 import static eu.wohlben.qits.telemetry.TelemetryFixtures.traceRequest;
 
 import com.google.protobuf.ByteString;
+import eu.wohlben.qits.telemetry.control.ErrorFingerprinter;
 import eu.wohlben.qits.telemetry.control.TelemetryDecoder;
 import eu.wohlben.qits.telemetry.control.TelemetryStore;
+import eu.wohlben.qits.telemetry.issues.ErrorIssueDelta;
+import eu.wohlben.qits.telemetry.issues.ErrorIssues;
+import eu.wohlben.qits.telemetry.issues.persistence.ErrorIssueStore;
+import eu.wohlben.qits.telemetry.testdb.ErrorIssueTables;
 import io.opentelemetry.proto.collector.logs.v1.ExportLogsServiceRequest;
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
 import io.opentelemetry.proto.common.v1.AnyValue;
@@ -30,6 +35,7 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -62,6 +68,25 @@ public class ProviderStates {
 
   /** The merged log tail's state (qits-landing-app's Logs page, qits-2534). */
   public static final String TELEMETRY_FROM_TWO_SERVICES = "telemetry from two platform services";
+
+  /**
+   * Three stored error issues and one buffered ERROR log of the first (epic qits-2538): the state
+   * of {@code listErrorIssues}, {@code getErrorIssue}, {@code dismissErrorIssue}, and of {@code
+   * searchTelemetryLogs} by {@code fingerprint}.
+   */
+  public static final String ERROR_ISSUES = "stored error issues";
+
+  /**
+   * The first issue's id, written directly rather than computed, so qits-projects' own state can
+   * name the same issue on a ticket.
+   */
+  static final String ISSUE_FINGERPRINT = "0123456789abcdef0123456789abcdef";
+
+  /** The message-only issue: no exception, no location. */
+  static final String MESSAGE_ONLY_FINGERPRINT = "fedcba9876543210fedcba9876543210";
+
+  /** The dismissed issue, regressed once and dismissed again. */
+  static final String DISMISSED_FINGERPRINT = "00112233445566778899aabbccddeeff";
 
   /** The second service of {@link #TELEMETRY_FROM_TWO_SERVICES}. */
   static final String OTHER_SERVICE = "qits-other";
@@ -97,6 +122,8 @@ public class ProviderStates {
   @Inject TelemetryStore store;
   @Inject TelemetryDecoder decoder;
   @Inject ContractClock clock;
+  @Inject ErrorIssueStore issues;
+  @Inject ErrorIssueTables issueTables;
 
   private final Map<String, Supplier<Setup>> states = new LinkedHashMap<>();
 
@@ -105,6 +132,7 @@ public class ProviderStates {
     states.put(AN_EMPTY_TELEMETRY_BUFFER, this::anEmptyTelemetryBuffer);
     states.put(TELEMETRY_RECORDS_OF_EVERY_KIND, this::telemetryRecordsOfEveryKind);
     states.put(TELEMETRY_FROM_TWO_SERVICES, this::telemetryFromTwoServices);
+    states.put(ERROR_ISSUES, this::storedErrorIssues);
   }
 
   /** Every state name this provider answers for. */
@@ -345,6 +373,125 @@ public class ProviderStates {
     params.put("otherService", OTHER_SERVICE);
     params.put("otherSource", OTHER_SOURCE);
     return new Setup(Collections.unmodifiableMap(params));
+  }
+
+  /**
+   * Three issues, written through the store as a flush writes them, and one buffered ERROR log.
+   *
+   * <ul>
+   *   <li>{@value #ISSUE_FINGERPRINT}: OPEN, {@value #SERVICE}'s {@code IllegalStateException} at
+   *       {@code eu.example.InvoiceResource.list}, three occurrences over two hours (two hourly
+   *       rows), first seen in {@code 2026.1230.090000}, last in {@code 2026.1231.120000}, last
+   *       trace {@value #FAILED_TRACE_ID}.
+   *   <li>{@value #MESSAGE_ONLY_FINGERPRINT}: OPEN, {@value #SERVICE}, no exception and no location —
+   *       the normalised message is all it has.
+   *   <li>{@value #DISMISSED_FINGERPRINT}: DISMISSED by {@code operator}, after it regressed once.
+   * </ul>
+   *
+   * <p>The buffer holds one ERROR log of {@value #SERVICE} stamped with the first issue's
+   * fingerprint, in trace {@value #FAILED_TRACE_ID}. Params: {@code fingerprint}, {@code
+   * dismissedFingerprint}, {@code service}, {@code traceId}.
+   */
+  private Setup storedErrorIssues() {
+    store.clear();
+    issueTables.clear();
+    clock.fixAt(NOW);
+    Instant hourBefore = T0.minusSeconds(3600);
+    issues.apply(
+        List.of(
+            new ErrorIssueDelta(
+                ISSUE_FINGERPRINT,
+                SERVICE,
+                "java.lang.IllegalStateException",
+                "eu.example.InvoiceResource.list",
+                "invoice store unreachable",
+                "invoice store unreachable",
+                "java.lang.IllegalStateException: invoice store unreachable\n"
+                    + "\tat eu.example.InvoiceResource.list(InvoiceResource.java:42)\n",
+                FAILED_TRACE_ID,
+                hourBefore.plusSeconds(600),
+                T0.plusMillis(700),
+                "2026.1230.090000",
+                "2026.1231.120000",
+                3,
+                new TreeMap<>(Map.of(hourBefore, 2L, T0, 1L))),
+            new ErrorIssueDelta(
+                MESSAGE_ONLY_FINGERPRINT,
+                SERVICE,
+                null,
+                null,
+                "nightly export finished with <n> failures",
+                "nightly export finished with 3 failures",
+                null,
+                null,
+                T0.plusSeconds(30),
+                T0.plusSeconds(30),
+                "2026.1231.120000",
+                "2026.1231.120000",
+                1,
+                new TreeMap<>(Map.of(T0, 1L))),
+            dismissedDelta(hourBefore.plusSeconds(60))),
+        T0);
+    issues.dismiss(DISMISSED_FINGERPRINT, "operator", T0.plusSeconds(60));
+    issues.apply(List.of(dismissedDelta(T0.plusSeconds(120))), T0.plusSeconds(180));
+    issues.dismiss(DISMISSED_FINGERPRINT, "operator", T0.plusSeconds(240));
+
+    long received = T0.toEpochMilli() + 2_000L;
+    long t0 = T0.toEpochMilli() * 1_000_000L;
+    Resource resource =
+        Resource.newBuilder()
+            .addAttributes(attribute("service.name", SERVICE))
+            .addAttributes(attribute("service.version", "2026.1231.120000"))
+            .build();
+    LogRecord error =
+        log(
+                t0 + 700_000_000L,
+                SeverityNumber.SEVERITY_NUMBER_ERROR,
+                "ERROR",
+                "invoice store unreachable")
+            .addAttributes(attribute("exception.type", "java.lang.IllegalStateException"))
+            .addAttributes(attribute(ErrorFingerprinter.FINGERPRINT_ATTRIBUTE, ISSUE_FINGERPRINT))
+            .build();
+    store.addLogs(
+        decoder.decodeLogs(
+            ExportLogsServiceRequest.newBuilder()
+                .addResourceLogs(
+                    ResourceLogs.newBuilder()
+                        .setResource(resource)
+                        .addScopeLogs(
+                            ScopeLogs.newBuilder()
+                                .setScope(
+                                    InstrumentationScope.newBuilder()
+                                        .setName("io.quarkus.opentelemetry"))
+                                .addLogRecords(error)))
+                .build(),
+            received));
+
+    Map<String, String> params = new TreeMap<>();
+    params.put("fingerprint", ISSUE_FINGERPRINT);
+    params.put("dismissedFingerprint", DISMISSED_FINGERPRINT);
+    params.put("service", SERVICE);
+    params.put("traceId", FAILED_TRACE_ID);
+    return new Setup(Collections.unmodifiableMap(params));
+  }
+
+  /** One occurrence of the issue that ends up dismissed, at {@code at}. */
+  private static ErrorIssueDelta dismissedDelta(Instant at) {
+    return new ErrorIssueDelta(
+        DISMISSED_FINGERPRINT,
+        SERVICE,
+        "java.util.concurrent.TimeoutException",
+        "eu.example.ReportJob.run",
+        "report timed out",
+        "report timed out",
+        null,
+        null,
+        at,
+        at,
+        "2026.1231.120000",
+        "2026.1231.120000",
+        1,
+        new TreeMap<>(Map.of(ErrorIssues.hourOf(at), 1L)));
   }
 
   private static LogRecord.Builder log(

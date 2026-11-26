@@ -1,0 +1,110 @@
+{
+  "formatVersion" : 2,
+  "application" : "qits-observability",
+  "entities" : [
+    {
+      "entity" : "eu.wohlben.qits.telemetry.issues.entity.ErrorIssueEntity",
+      "table" : "error_issue",
+      "marking" : "domain",
+      "reason" : null,
+      "projectionOf" : null,
+      "knownGap" : null,
+      "dtos" : [
+        {
+          "type" : "eu.wohlben.qits.telemetry.api.ErrorIssueController$ListErrorIssuesRequest$Response",
+          "kind" : "via",
+          "via" : "eu.wohlben.qits.telemetry.issues.ErrorIssuePage",
+          "site" : "ErrorIssueController.list(String, String, int)"
+        },
+        {
+          "type" : "eu.wohlben.qits.telemetry.dto.ErrorIssueDetailDto",
+          "kind" : "via",
+          "via" : "eu.wohlben.qits.telemetry.issues.ErrorIssue",
+          "site" : "ErrorIssueDetailDto.of(ErrorIssue, List)"
+        },
+        {
+          "type" : "eu.wohlben.qits.telemetry.dto.ErrorIssueDto",
+          "kind" : "via",
+          "via" : "eu.wohlben.qits.telemetry.issues.ErrorIssue",
+          "site" : "ErrorIssueDto.of(ErrorIssue)"
+        },
+        {
+          "type" : "eu.wohlben.qits.telemetry.issues.ErrorIssue",
+          "kind" : "assembler",
+          "via" : null,
+          "site" : "ErrorIssueEntity.toIssue()"
+        },
+        {
+          "type" : "eu.wohlben.qits.telemetry.issues.ErrorIssuePage",
+          "kind" : "assembler",
+          "via" : null,
+          "site" : "ErrorIssueStore.list(ErrorIssueState, String, int)"
+        }
+      ],
+      "operations" : [
+        {
+          "operationId" : "dismissErrorIssue",
+          "method" : "POST",
+          "path" : "/error-issues/{fingerprint}/dismiss",
+          "dto" : "eu.wohlben.qits.telemetry.dto.ErrorIssueDto",
+          "kind" : "returns",
+          "cardinality" : "single"
+        },
+        {
+          "operationId" : "getErrorIssue",
+          "method" : "GET",
+          "path" : "/error-issues/{fingerprint}",
+          "dto" : "eu.wohlben.qits.telemetry.dto.ErrorIssueDetailDto",
+          "kind" : "returns",
+          "cardinality" : "single"
+        },
+        {
+          "operationId" : "listErrorIssues",
+          "method" : "GET",
+          "path" : "/error-issues",
+          "dto" : "eu.wohlben.qits.telemetry.api.ErrorIssueController$ListErrorIssuesRequest$Response",
+          "kind" : "returns",
+          "cardinality" : "collection"
+        }
+      ]
+    },
+    {
+      "entity" : "eu.wohlben.qits.telemetry.issues.entity.ErrorIssueHourEntity",
+      "table" : "error_issue_hour",
+      "marking" : "domain",
+      "reason" : null,
+      "projectionOf" : null,
+      "knownGap" : null,
+      "dtos" : [
+        {
+          "type" : "eu.wohlben.qits.telemetry.dto.ErrorIssueDetailDto",
+          "kind" : "via",
+          "via" : "eu.wohlben.qits.telemetry.issues.ErrorIssueHour",
+          "site" : "ErrorIssueDetailDto.of(ErrorIssue, List)"
+        },
+        {
+          "type" : "eu.wohlben.qits.telemetry.dto.ErrorIssueHourDto",
+          "kind" : "via",
+          "via" : "eu.wohlben.qits.telemetry.issues.ErrorIssueHour",
+          "site" : "ErrorIssueHourDto.of(ErrorIssueHour)"
+        },
+        {
+          "type" : "eu.wohlben.qits.telemetry.issues.ErrorIssueHour",
+          "kind" : "assembler",
+          "via" : null,
+          "site" : "ErrorIssueHourEntity.toHour()"
+        }
+      ],
+      "operations" : [
+        {
+          "operationId" : "getErrorIssue",
+          "method" : "GET",
+          "path" : "/error-issues/{fingerprint}",
+          "dto" : "eu.wohlben.qits.telemetry.dto.ErrorIssueDetailDto",
+          "kind" : "returns",
+          "cardinality" : "single"
+        }
+      ]
+    }
+  ]
+}

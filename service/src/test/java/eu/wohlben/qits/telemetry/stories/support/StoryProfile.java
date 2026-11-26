@@ -1,6 +1,7 @@
 package eu.wohlben.qits.telemetry.stories.support;
 
 import eu.wohlben.qits.telemetry.security.BearerTokens;
+import eu.wohlben.qits.telemetry.testdb.EmbeddedPg;
 import io.quarkus.test.junit.QuarkusTestProfile;
 import java.util.Map;
 
@@ -15,10 +16,14 @@ import java.util.Map;
  *
  * <h2>There is strikingly little here, and that is this service's shape</h2>
  *
- * <p>qits-observability owns no tables. {@code .config/qits/deployments.yml} declares no {@code
- * resources:} at all, so there are no generic triples to supply, no datasource, no Flyway and no
- * data directory to redirect into {@code target/}. The whole of a qits-observability deployment is
- * <b>a process and two addresses</b>, and one of those two is the seam below.
+ * <p>qits-observability's one table family is its error issues (epic qits-2538): {@code
+ * .config/qits/deployments.yml} declares {@code postgresql:db}, so a deployment injects the
+ * platform's generic triple {@code QITS_RESOURCE_DB_URL} / {@code _USERNAME} / {@code _PASSWORD},
+ * and this profile fills it exactly that way, with a database of the catalogue's own on the suite's
+ * one embedded postgres ({@code testdb/EmbeddedPg}: a child process of this JVM, no docker). There
+ * is no data directory to redirect into {@code target/}. The whole of a qits-observability
+ * deployment is <b>a process, a database and two addresses</b>, and one of those addresses is the
+ * seam below.
  *
  * <p>Identity is <b>a bearer token</b>, checked by the shipped OIDC tenant (epic qits-543: the
  * forwarded {@code X-Qits-*} headers authenticate nothing). There is still no idp to stand up: the
@@ -73,17 +78,38 @@ import java.util.Map;
  */
 public class StoryProfile implements QuarkusTestProfile {
 
+  /** Where the url is parked for whichever copy of this class is asked second. */
+  private static final String URL_PROPERTY = "qits.test.userflows-it.db-url";
+
+  /** The catalogue's own database on the one embedded postgres. */
+  private static final String DATABASE = "observability_userflows_it";
+
   @Override
   public Map<String, String> getConfigOverrides() {
     // The parent starts HERE, before the application, and parks its port in a system property: a
     // test profile is instantiated in more than one classloader, and the property table is the one
     // thing every copy (and a story method's own reads) shares.
     return Map.of(
+        // The platform's generic resource contract, exactly as a deployment fills it.
+        "QITS_RESOURCE_DB_URL", databaseUrl(),
+        "QITS_RESOURCE_DB_USERNAME", EmbeddedPg.USER,
+        "QITS_RESOURCE_DB_PASSWORD", EmbeddedPg.PASSWORD,
         "otel.exporter.otlp.endpoint", StoryParent.ensureStarted(),
         "quarkus.otel.sdk.disabled", "true",
         // The bearer check, without an idp: the local key replaces discovery and the key fetch.
         "quarkus.oidc.auth-server-url", "",
         "quarkus.oidc.public-key", BearerTokens.verificationKey(),
         "quarkus.oidc.token.issuer", BearerTokens.ISSUER);
+  }
+
+  private static synchronized String databaseUrl() {
+    String recorded = System.getProperty(URL_PROPERTY);
+    if (recorded != null) {
+      return recorded;
+    }
+    // localhost resolves for the launched process too — it is a child of this JVM on this host.
+    String url = EmbeddedPg.url(DATABASE);
+    System.setProperty(URL_PROPERTY, url);
+    return url;
   }
 }

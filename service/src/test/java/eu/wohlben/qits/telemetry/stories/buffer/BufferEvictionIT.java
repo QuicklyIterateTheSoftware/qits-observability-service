@@ -30,9 +30,9 @@ import org.junit.jupiter.api.BeforeAll;
 /**
  * <b>The buffer is a window, and the honest thing it can do is say when the window has moved.</b>
  *
- * <p>This context owns no tables. Everything it holds it holds in memory, bounded per source and
- * bounded again by a global byte ceiling, and a restart empties it — which is the feature rather than
- * a limitation. The cost of that choice is exactly one thing: an answer can be <em>short because the
+ * <p>The buffer owns no tables (only the error issues are stored). Everything it holds it holds in
+ * memory, bounded per source and bounded again by a global byte ceiling, and a restart empties it —
+ * which is the feature rather than a limitation. The cost of that choice is exactly one thing: an answer can be <em>short because the
  * buffer scrolled</em> rather than because little happened, and those two are indistinguishable from
  * the answer alone. {@code /store}'s eviction counters are the whole of the difference, and this
  * story is the one that moves them.

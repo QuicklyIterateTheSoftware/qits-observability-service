@@ -1,0 +1,30 @@
+{
+  "fingerprint": "0123456789abcdef0123456789abcdef",
+  "state": "OPEN",
+  "serviceName": "qits-example",
+  "exceptionType": "java.lang.IllegalStateException",
+  "location": "eu.example.InvoiceResource.list",
+  "message": "invoice store unreachable",
+  "sampleMessage": "invoice store unreachable",
+  "sampleTraceId": "6a1f0c2b9d8e47f3a5b4c3d2e1f00a01",
+  "firstSeen": "2026-01-01T00:00:00Z",
+  "lastSeen": "2026-01-01T00:00:00Z",
+  "firstVersion": "2026.1230.090000",
+  "lastVersion": "2026.1231.120000",
+  "occurrences": 3,
+  "regressions": 0,
+  "regressedAt": null,
+  "dismissedAt": null,
+  "dismissedBy": null,
+  "sampleStacktrace": "java.lang.IllegalStateException: invoice store unreachable\n\tat eu.example.InvoiceResource.list(InvoiceResource.java:42)\n",
+  "hourly": [
+    {
+      "hour": "2026-01-01T00:00:00Z",
+      "count": 2
+    },
+    {
+      "hour": "2026-01-01T00:00:00Z",
+      "count": 1
+    }
+  ]
+}

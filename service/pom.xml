@@ -11,12 +11,11 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <!-- The whole telemetry context, in one module: `eu.wohlben.qits.telemetry.{api,control,dto,
-         error}`. Unlike every other qits context there is no domain/service split, because
-         there was none to replay — migration-plan.md §3.6: telemetry is the one domain whose
-         business logic already lived entirely in the monorepo's `service` module. The buffer is
-         in-memory, so the usual reason for a framework-free `domain` jar (entities + persistence
-         + its own Flyway lineage) does not apply.
+    <!-- The telemetry context's web stack and its in-memory buffer:
+         `eu.wohlben.qits.telemetry.{api,control,dto,error}`. The buffer is in-memory and stays
+         here. The error issues of epic qits-2538 are durable, and their entities, their store and
+         the `observability` Flyway lineage are the sibling `domain` module
+         (`eu.wohlben.qits.telemetry.issues.*`), built from source in this reactor.
 
          DIRECTORY vs ARTIFACT: the directory is `service/` because the replayed git history is
          anchored to service/src/**; the artifactId is `qits-telemetry` because that is the settled
@@ -39,6 +38,17 @@
     <packaging>quarkus</packaging>
 
     <dependencies>
+        <dependency>
+            <!-- The error-issue domain: entities, store, the `observability` Flyway lineage. Brings
+                 hibernate-orm, the postgres driver, Flyway and qits-db-core's PatientPgDriver. -->
+            <groupId>${project.groupId}</groupId>
+            <artifactId>qits-telemetry-domain</artifactId>
+        </dependency>
+        <dependency>
+            <!-- ErrorIssueAggregator's flush (every 10 s) and the hourly purge of error_issue_hour. -->
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-scheduler</artifactId>
+        </dependency>
         <dependency>
             <!-- /<segment>/q/health/ready - the readiness endpoint qits-cd's health gate curls;
                  the deployment convention every service answers. -->
@@ -220,6 +230,39 @@
                  Test scope at every declaration site, like qits-userflows above. -->
             <groupId>${project.groupId}</groupId>
             <artifactId>qits-arch-rules</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <!-- A real postgres for the suite, spawned as a child process (testdb/EmbeddedPg): no
+                 docker, no network. -->
+            <groupId>io.zonky.test</groupId>
+            <artifactId>embedded-postgres</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <!-- Named per architecture on purpose: the binaries are separate artifacts and zonky
+                 picks one at run time, so an unnamed arch fails in the middle of a suite rather
+                 than during resolution. -->
+            <groupId>io.zonky.test.postgres</groupId>
+            <artifactId>embedded-postgres-binaries-linux-amd64</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.zonky.test.postgres</groupId>
+            <artifactId>embedded-postgres-binaries-linux-arm64v8</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <!-- The CI arch: the release-request step containers are Alpine (musl), and zonky picks
+                 the -alpine binaries there at run time. Without it that pipeline resolves green and
+                 dies mid-suite on a missing artifact, as qits-mirror's pom explains. -->
+            <groupId>io.zonky.test.postgres</groupId>
+            <artifactId>embedded-postgres-binaries-linux-amd64-alpine</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.zonky.test.postgres</groupId>
+            <artifactId>embedded-postgres-binaries-darwin-arm64v8</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

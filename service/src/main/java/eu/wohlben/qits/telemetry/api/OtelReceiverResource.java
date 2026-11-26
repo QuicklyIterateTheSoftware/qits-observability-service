@@ -4,6 +4,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import eu.wohlben.qits.telemetry.error.BadRequestException;
 import eu.wohlben.qits.telemetry.error.PayloadTooLargeException;
 import eu.wohlben.qits.telemetry.control.ErrorFingerprinter;
+import eu.wohlben.qits.telemetry.control.ErrorIssueAggregator;
 import eu.wohlben.qits.telemetry.control.TelemetryDecoder;
 import eu.wohlben.qits.telemetry.control.TelemetryLiveFeed;
 import eu.wohlben.qits.telemetry.control.TelemetryStore;
@@ -113,6 +114,13 @@ public class OtelReceiverResource {
    */
   @Inject TelemetryLiveFeed liveFeed;
 
+  /**
+   * The error-issue aggregator (epic qits-2538). Handed each stamped log batch last, after the store
+   * and the live feed; it folds the batch in memory and returns at once, so ingest never waits on
+   * the database — the flush writes it later, on its own schedule.
+   */
+  @Inject ErrorIssueAggregator aggregator;
+
   @POST
   @Path("/traces")
   @Operation(hidden = true, operationId = EXPORT_TRACES)
@@ -141,6 +149,7 @@ public class OtelReceiverResource {
         fingerprinter.stamp(decoder.decodeLogs(request, System.currentTimeMillis()));
     store.addLogs(decoded);
     liveFeed.publishLogs(decoded);
+    aggregator.offer(decoded);
     return ExportLogsServiceResponse.getDefaultInstance().toByteArray();
   }
 

@@ -115,6 +115,9 @@ class GoldenMasterRecordingTest {
   private static final String EMPTY = ProviderStates.AN_EMPTY_TELEMETRY_BUFFER;
   private static final String EVERY_KIND = ProviderStates.TELEMETRY_RECORDS_OF_EVERY_KIND;
   private static final String TWO = ProviderStates.TELEMETRY_FROM_TWO_SERVICES;
+  private static final String ISSUES = ProviderStates.ERROR_ISSUES;
+
+  private static final String ERROR_ISSUES = "/observability/api/error-issues";
 
   static final List<Interaction> INTERACTIONS =
       List.of(
@@ -170,6 +173,25 @@ class GoldenMasterRecordingTest {
           // The landing Logs page's default read: no source, every source merged (qits-2534).
           new Interaction(TWO, "searchTelemetryLogs", "GET", API + "/logs", null, 200),
           new Interaction(TWO, "listTelemetrySources", "GET", API + "/sources", null, 200),
+          // The stored error issues (epic qits-2538): the open list, one issue in full, a person's
+          // dismiss, and the issue's buffered lines by fingerprint.
+          new Interaction(ISSUES, "listErrorIssues", "GET", ERROR_ISSUES, null, 200),
+          new Interaction(
+              ISSUES, "getErrorIssue", "GET", ERROR_ISSUES + "/{fingerprint}", null, 200),
+          new Interaction(
+              ISSUES,
+              "dismissErrorIssue",
+              "POST",
+              ERROR_ISSUES + "/{fingerprint}/dismiss",
+              null,
+              200),
+          new Interaction(
+              ISSUES,
+              "searchTelemetryLogs",
+              "GET",
+              API + "/logs?fingerprint={fingerprint}",
+              null,
+              200),
           new Interaction(EMPTY, "getTelemetryStore", "GET", API + "/store", null, 200),
           new Interaction(EMPTY, "listTelemetrySources", "GET", API + "/sources", null, 200),
           // The landing Logs page's default read on an empty buffer: nothing at all (qits-2534).

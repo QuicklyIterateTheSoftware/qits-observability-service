@@ -4,6 +4,8 @@ import static io.restassured.RestAssured.given;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import eu.wohlben.qits.telemetry.testdb.EmbeddedPgResource;
+import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusIntegrationTest;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.Test;
@@ -44,6 +46,7 @@ import org.junit.jupiter.api.Test;
  * clone-alone rule promises. Ask for them explicitly.
  */
 @QuarkusIntegrationTest
+@QuarkusTestResource(value = EmbeddedPgResource.class, restrictToAnnotatedClass = true)
 class PackagedSurfaceIT {
 
   private static final String CLIENT_MARK = "<base href=\"/\">";

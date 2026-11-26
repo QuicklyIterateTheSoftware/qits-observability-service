@@ -8,6 +8,13 @@ artifacts:
 contracts:
   application: qits-observability
   golden-masters: { from: golden-masters/, packages: [maven, npm] }
+  # The entity exposure map EntityExposureTest keeps current (qits-1945; this service's first tables
+  # are epic qits-2538's error issues), bundled as entities.json in @contracts/qits-observability by
+  # contract-docs.
+  entities: docs/entities.json
+  # The ER diagrams `qits database diagram` keeps current (qits-2014), bundled under database/
+  # with an index in @contracts/<application> by contract-docs.
+  database: docs/database/
   # The consumer pacts this service writes (ticket qits-1149): IdpConsumerPactTest writes
   # pacts/qits-observability-service_qits-idp-service.json.
   pacts:

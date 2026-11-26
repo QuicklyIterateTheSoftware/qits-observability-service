@@ -11,6 +11,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import eu.wohlben.qits.telemetry.TelemetryFixtures;
 import io.opentelemetry.proto.logs.v1.SeverityNumber;
+import eu.wohlben.qits.telemetry.testdb.EmbeddedPgResource;
+import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusIntegrationTest;
 import java.time.Duration;
 import java.time.Instant;
@@ -34,6 +36,7 @@ import org.junit.jupiter.api.Test;
  * repository/workspace scope instead, which is exactly how the buckets are keyed anyway.
  */
 @QuarkusIntegrationTest
+@QuarkusTestResource(value = EmbeddedPgResource.class, restrictToAnnotatedClass = true)
 class OtelReceiverIT {
 
   private static final String PROTOBUF = "application/x-protobuf";

@@ -23,10 +23,9 @@
          as commit 1919396 "Settle the observability naming question" — both names, at different
          levels. The seed README's `qits-otel` is retired.
 
-         ONE CHILD MODULE, and the directory is `service/` rather than anything more descriptive:
-         this is the one qits context whose business logic lives entirely in the monorepo's
-         `service` module (there is no domain/telemetry), and the replayed git history is anchored
-         to those paths. Renaming the directory would break `git log` history-following across the
+         THE APP MODULE'S directory is `service/` rather than anything more descriptive: this
+         context's business logic lived entirely in the monorepo's `service` module (there was no
+         domain/telemetry), and the replayed git history is anchored to those paths. Renaming the directory would break `git log` history-following across the
          extraction, which is the whole point of replaying rather than copying. Only the coordinates
          are namespaced.
 
@@ -37,9 +36,12 @@
          Trimmed to what this module actually needs. The monorepo's app-wide machinery is
          intentionally omitted: spotless, the :8080 dev-mode port guard, isolated-test surefire
          chunking, enforcer, the derive-fixture-bares antrun step, the maven build-cache extension,
-         and the mandatory -Dqits.variant=oauth|forwardauth|local auth profiles. So is Flyway and
-         any datasource: this context owns no tables (migration-plan.md §3.6 — the store is the
-         in-memory, deliberately ephemeral TelemetryStore). -->
+         and the mandatory -Dqits.variant=oauth|forwardauth|local auth profiles.
+
+         TWO CHILD MODULES since epic qits-2538. The telemetry buffer is still in-memory and
+         ephemeral (TelemetryStore), but error issues are durable: `domain/` holds their entities,
+         their store and the `observability` Flyway lineage, and `service/` the web stack on top of
+         it. `domain` is internal and never published; `service` builds it from source (-am). -->
     <groupId>eu.wohlben.qits</groupId>
     <artifactId>qits-observability</artifactId>
     <version>2026.1126.15705</version>
@@ -47,6 +49,7 @@
     <name>qits-observability</name>
 
     <modules>
+        <module>domain</module>
         <module>service</module>
     </modules>
 
@@ -80,6 +83,18 @@
              epic qits-1621's check that every route admitting qits:admin-agent also admits
              qits:desk-admin. This context did not depend on qits-arch-rules before. -->
         <qits.arch-rules.version>2026.1113.14706</qits.arch-rules.version>
+        <!-- The platform's datasource resilience baseline (epic qits-2538, the first tables here):
+             qits-db-core carries PatientPgDriver, which the `observability` datasource block in
+             application.properties names, and qits-arch-rules above carries the
+             DatasourceBaselineTest rule that fails the build when a line of that block is missing.
+             Same pin qits-mirror carries. -->
+        <qits.db-core.version>2026.1107.191249</qits.db-core.version>
+        <!-- A REAL POSTGRES FOR THE SUITE WITHOUT DOCKER (epic qits-2538): zonky resolves postgres
+             binaries as ordinary Maven artifacts and the suite spawns them as a child process. A
+             clone must test green with no docker, and the error-issue schema still has to be
+             exercised against the database it ships on. The pair qits-mirror carries. -->
+        <zonky.embedded-postgres.version>2.2.2</zonky.embedded-postgres.version>
+        <zonky.postgres-binaries.version>18.4.0</zonky.postgres-binaries.version>
         <!-- The consumer half of the contracts (ticket qits-1149): qits-pact-consumer reads the idp's
              golden masters and writes pacts/qits-observability-service_qits-idp-service.json.
              Exact pins: a newer recording is a deliberate bump. -->
@@ -148,6 +163,30 @@
                 <version>${quarkus.platform.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.zonky.test.postgres</groupId>
+                <artifactId>embedded-postgres-binaries-bom</artifactId>
+                <version>${zonky.postgres-binaries.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.zonky.test</groupId>
+                <artifactId>embedded-postgres</artifactId>
+                <version>${zonky.embedded-postgres.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <!-- The error-issue domain, built from source in this reactor and never published. -->
+                <groupId>${project.groupId}</groupId>
+                <artifactId>qits-telemetry-domain</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>qits-db-core</artifactId>
+                <version>${qits.db-core.version}</version>
             </dependency>
             <dependency>
                 <groupId>${project.groupId}</groupId>

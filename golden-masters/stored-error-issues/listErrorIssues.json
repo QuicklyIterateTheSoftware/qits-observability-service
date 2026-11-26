@@ -1,0 +1,44 @@
+{
+  "issues": [
+    {
+      "fingerprint": "fedcba9876543210fedcba9876543210",
+      "state": "OPEN",
+      "serviceName": "qits-example",
+      "exceptionType": null,
+      "location": null,
+      "message": "nightly export finished with <n> failures",
+      "sampleMessage": "nightly export finished with 3 failures",
+      "sampleTraceId": null,
+      "firstSeen": "2026-01-01T00:00:00Z",
+      "lastSeen": "2026-01-01T00:00:00Z",
+      "firstVersion": "2026.1231.120000",
+      "lastVersion": "2026.1231.120000",
+      "occurrences": 1,
+      "regressions": 0,
+      "regressedAt": null,
+      "dismissedAt": null,
+      "dismissedBy": null
+    },
+    {
+      "fingerprint": "0123456789abcdef0123456789abcdef",
+      "state": "OPEN",
+      "serviceName": "qits-example",
+      "exceptionType": "java.lang.IllegalStateException",
+      "location": "eu.example.InvoiceResource.list",
+      "message": "invoice store unreachable",
+      "sampleMessage": "invoice store unreachable",
+      "sampleTraceId": "6a1f0c2b9d8e47f3a5b4c3d2e1f00a01",
+      "firstSeen": "2026-01-01T00:00:00Z",
+      "lastSeen": "2026-01-01T00:00:00Z",
+      "firstVersion": "2026.1230.090000",
+      "lastVersion": "2026.1231.120000",
+      "occurrences": 3,
+      "regressions": 0,
+      "regressedAt": null,
+      "dismissedAt": null,
+      "dismissedBy": null
+    }
+  ],
+  "total": 2,
+  "truncated": false
+}
