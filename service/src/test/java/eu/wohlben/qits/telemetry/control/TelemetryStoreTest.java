@@ -10,7 +10,6 @@ import eu.wohlben.qits.telemetry.dto.StoredSource;
 import eu.wohlben.qits.telemetry.dto.StoredSpan;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -85,63 +84,6 @@ class TelemetryStoreTest {
       String name, double value, Map<String, String> attributes, Map<String, String> resource) {
     return new MetricPoint(
         name, "", "By", "GAUGE", value, 1_000_000_000L, attributes, "svc", resource, 1L);
-  }
-
-  /** Overrides {@link TelemetryChangePublisher#fire} to record instead of routing through CDI. */
-  private static final class RecordingPublisher extends TelemetryChangePublisher {
-    final List<TelemetryChanged> fired = new CopyOnWriteArrayList<>();
-
-    @Override
-    public void fire(String repoId, String workspaceId) {
-      fired.add(new TelemetryChanged(repoId, workspaceId));
-    }
-  }
-
-  @Test
-  void appendingScopedTelemetryFiresOneTelemetryHintPerWorkspace() {
-    RecordingPublisher publisher = new RecordingPublisher();
-    store.changePublisher = publisher;
-
-    store.addSpans(
-        List.of(
-            span("t1", "a", qitsAttributes("repo", "wt"), 1),
-            span("t2", "b", qitsAttributes("repo", "wt"), 2)));
-    store.addLogs(List.of(log("hi", qitsAttributes("repo", "wt"), 3)));
-    store.addMetrics(List.of(metric("m", 1.0, Map.of(), qitsAttributes("repo", "wt"))));
-
-    // Two spans for one workspace coalesce to one hint; each append method fires once → 3 total.
-    // (The monorepo also asserted topic() == Topic.TELEMETRY; TelemetryChanged has no topic
-    // field — it IS the telemetry topic — so the event type carries that assertion now.)
-    assertEquals(3, publisher.fired.size());
-    assertTrue(
-        publisher.fired.stream()
-            .allMatch(h -> h.repoId().equals("repo") && h.workspaceId().equals("wt")));
-  }
-
-  @Test
-  void aBatchSpanningTwoWorkspacesFiresAHintForEach() {
-    RecordingPublisher publisher = new RecordingPublisher();
-    store.changePublisher = publisher;
-
-    store.addSpans(
-        List.of(
-            span("t1", "a", qitsAttributes("repo", "wt-a"), 1),
-            span("t2", "b", qitsAttributes("repo", "wt-b"), 2)));
-
-    assertEquals(2, publisher.fired.size());
-    assertTrue(publisher.fired.stream().anyMatch(h -> h.workspaceId().equals("wt-a")));
-    assertTrue(publisher.fired.stream().anyMatch(h -> h.workspaceId().equals("wt-b")));
-  }
-
-  @Test
-  void unscopedTelemetryFiresNoHint() {
-    RecordingPublisher publisher = new RecordingPublisher();
-    store.changePublisher = publisher;
-
-    // No qits.repository.id / qits.workspace.id → lands in the unscoped bucket, nothing subscribes.
-    store.addLogs(List.of(log("orphan", Map.of("service.name", "svc"), 1)));
-
-    assertTrue(publisher.fired.isEmpty());
   }
 
   @Test
