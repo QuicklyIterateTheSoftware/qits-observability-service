@@ -32,8 +32,7 @@ import org.jboss.logging.Logger;
  * ingest to the sockets.
  *
  * <p><b>Fed by {@code OtelReceiverResource}</b>, right after each {@code store.add*}, with the list
- * it just decoded. Not by {@link TelemetryStore}, which stays free of CDI, and not by {@link
- * TelemetryChanged}, which is silent for everything that is not workspace-scoped.
+ * it just decoded. Not by {@link TelemetryStore}, which stays free of CDI.
  *
  * <p><b>Ingest never waits and never fails because of it.</b> With nobody subscribed a publish
  * returns at once. Otherwise it hands the batch to one dispatcher thread with a bounded backlog

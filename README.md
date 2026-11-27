@@ -14,11 +14,16 @@ The **client** is served at `/`. This service has a host of its own,
     mvn verify        # a clone of this repo alone builds and tests green — no monorepo, no docker
     mvn verify -Dnative   # and compiles to a GraalVM binary, still no docker (see .sdkmanrc)
 
-Services launched inside a workspace with the `otel` toggle get `OTEL_EXPORTER_OTLP_ENDPOINT` and
-`OTEL_RESOURCE_ATTRIBUTES` pointed back at qits. Their spans, logs and metrics land here, bucketed
-by the `qits.repository.id` / `qits.workspace.id` attributes they carry. An agent debugging that
-workspace then asks `telemetryErrors` instead of scraping logs, and gets exceptions as structured
-span events with stack traces, correlated by trace id.
+The qits services export their own spans, logs and metrics here, and each lands in a bucket named
+for its `service.name`. People and agents read them through the `qits observe` CLI, which calls the
+REST surface and the live stream.
+
+**No workspace sends telemetry today.** The workspace daemon's `otel` launch toggle used to stamp
+`qits.repository.id` / `qits.workspace.id` on processes started inside a workspace. It was removed in
+`2d10d13` (2026-09-09), and nothing else on the estate sets those attributes. The store still
+buckets the pair if an exporter sends it, but no exporter does. Reads are gated by role only (see
+[Authentication](#authentication)), so **read scoping must come back before any workspace sender
+does.**
 
 ## Two names, on purpose
 
@@ -38,7 +43,7 @@ gateway constant belongs to the gateway.
 | `service/` | Everything else, artifactId `qits-telemetry`: the receiver, the buffer, the web stack. |
 | `service/src/main/webui/` | The SPA, as the `qits-observability-frontend` submodule. Built and served by Quinoa. |
 | `…/api/` | `OtelReceiverResource` (OTLP ingest), `OtelForwarder` (the upstream tee), `WorkspaceTelemetryController` (the UI's JSON), `ErrorIssueController` (the error issues), `TelemetryExceptionMapper`. |
-| `…/control/` | `TelemetryDecoder` (protobuf → records), `TelemetryStore` (the buffer), `TelemetryQueryService` (every query the REST surface answers from), `ErrorFingerprinter`, `ErrorIssueAggregator` and its flush, `ErrorIssuePurge`, `TelemetrySizeEstimator`, `TelemetryChangePublisher`. |
+| `…/control/` | `TelemetryDecoder` (protobuf → records), `TelemetryStore` (the buffer), `TelemetryQueryService` (every query the REST surface answers from), `ErrorFingerprinter`, `ErrorIssueAggregator` and its flush, `ErrorIssuePurge`, `TelemetrySizeEstimator`. |
 | `…/dto/` | The stored records and the wire DTOs. |
 | `…/error/` | This context's own `DomainException` family (migration-plan.md §5). |
 
@@ -135,8 +140,8 @@ exporter stamped, nothing more: the `qits.repository.id`/`qits.workspace.id` pai
 otherwise `service.name` under `_service/<name>`, otherwise `_unscoped`. Every bucket is bounded the
 same way and every bucket is reachable, through `?source=`.
 
-The `service.name` tier is not cosmetic. Nothing on this platform stamps the qits attributes — the
-sender that would is a known gap, recorded below — so before it existed all ten processes shared one
+The `service.name` tier is not cosmetic. Nothing on this platform stamps the qits attributes, because
+the workspace sender was removed (see the top of this README). Before this tier existed, all ten processes shared one
 bucket, which defeated the fairness tier above and put the whole platform's telemetry somewhere no
 query could name. Splitting them multiplied the worst-case retained set, which is why the span cap
 dropped from 5,000 to 2,000 in the same change.
@@ -234,29 +239,9 @@ and the events outbox): ingest, the store and the REST query surface work standa
 events wait in the outbox while qits-events is not there. Cross-context references are by string id, never a foreign key. Agents read
 telemetry through the qits CLI, which calls the REST surface.
 
-In the other direction this context publishes two things. The error-issue events go to qits-events
-(*Events* above). And `TelemetryChanged(repoId, workspaceId)` stays what it was, a same-process CDI
-async hint — it is not on qits-events, and nothing here moves it there. It fires whenever a scoped
-ingest fills a workspace's buffers (deduped — a 1000-span batch for one workspace is one event). An application that also runs the workspaces context bridges it to the SSE
-channel:
-
-```java
-void onTelemetry(@ObservesAsync TelemetryChanged changed) {
-  workspaceChangePublisher.fire(changed.repoId(), changed.workspaceId(), Topic.TELEMETRY);
-}
-```
-
-With no observer the event is a no-op, which is the supported standalone configuration: browsers
-just re-read on their own schedule instead of being pushed at. The event carries no payload, so a
-dropped one self-heals on the next.
-
-**Do not build a live channel on this.** The hint fires only for records carrying both qits
-attributes, and on this platform nothing stamps them, so it is silent for effectively all the
-telemetry that exists. A stream wired to it would look live and never fire, which is worse than
-having none. It is also a same-process CDI event, and under the gateway topology qits-workspaces and
-qits-observability are separate containers. The observability UI polls, and that is the settled
-answer rather than a gap waiting to be filled. The live stream below is fed from ingest directly,
-not from this event.
+In the other direction this context publishes one thing: the error-issue events, to qits-events
+(*Events* above). It publishes nothing per workspace. The observability UI polls, and that is the
+settled answer. The live stream below is fed from ingest directly.
 
 ## Deploying it
 
@@ -275,7 +260,7 @@ What is still the deployment's to provide:
   [Events](#events). `QITS_DOMAIN` also names qits-events' public address.
 
 - allow-list `/observability/api/otel/v1/*` for unauthenticated access. That is the ingest surface,
-  and the exporters hitting it are SDKs inside workspace containers, not sessions. In the monorepo
+  and the exporters hitting it are the platform services' SDKs, not sessions. In the monorepo
   this lives in `auth/core`'s `PublicPaths`; under the gateway it is `PublicPaths` there.
 - nothing, for the qits services themselves — **they now export here on their own.** Each of the
   seven carries `quarkus-opentelemetry` and points at one key, `qits.observability.url`, defaulting
@@ -360,7 +345,8 @@ is invisible to the local ingest.
 their events, metrics) as it arrives, filtered per connection on the server. `qits observe` is its
 client. This section is the wire protocol, shared with the CLI. Change it here, and on both sides.
 
-- **Auth.** `qits:admin`, checked on the upgrade. A person's `qits` token (`aud=qits-platform`, roles
+- **Auth.** `qits:admin`, `qits:admin-agent`, `qits:desk-admin` or `qits:agent`, checked on the
+  upgrade. A person's `qits` token (`aud=qits-platform`, roles
   in `groups`) or the edge's forward-auth headers both work. No credential is 401, no role is 403.
 - **Protocol.** A connection starts subscribed to nothing. Each `{"subscribe": [group, …]}` frame
   replaces its filters. Groups are ORed, the conditions in a group are ANDed, an empty group matches
@@ -402,7 +388,7 @@ client. This section is the wire protocol, shared with the CLI. Change it here, 
 
 `POST /observability/api/telemetry/records/search` answers what the live stream *would have*
 pushed, from what is still buffered, in a closed window. `qits observe query` is its client. Roles
-are the query API's: `qits:admin` or `qits:agent`. A POST because the body is the filter; it
+are the query API's: `qits:admin`, `qits:admin-agent`, `qits:desk-admin` or `qits:agent`. A POST because the body is the filter; it
 changes nothing.
 
 ```json
@@ -457,9 +443,20 @@ Two ways in, and `@RolesAllowed` decides for both:
 Ingest (`/observability/api/otel/v1/*`) is `@PermitAll` and takes an export with no credential.
 Every other route refuses a request with neither: 401. See `AGENTS.md`.
 
+**Reads are gated by role only.** Every `/telemetry/*` route, the search and the live stream admit
+`qits:admin`, `qits:admin-agent`, `qits:desk-admin` and `qits:agent`, and nothing narrows what a
+caller sees after that. `GET /telemetry/sources` lists every bucket unfiltered. Any reader can read
+any bucket. That is safe only because every bucket today holds a platform service's telemetry. The
+ports that once scoped reads by project were deleted with the MCP tools in qits-1174 (`16ccb0a`).
+
+**Whoever brings back a workspace sender must first bring back read scoping**, failing closed by
+project, before any workspace bucket carries data. Without it, one project's agent can read
+another project's workspace telemetry.
+
 ## What is deliberately *not* here
 
-- The **`otel` launch toggle** and the env-var injection that points exporters at this receiver:
-  that is the service-supervision half, and lives with workspaces / the workspace-daemon.
+- **A workspace telemetry sender.** Pointing a workspace process's exporter at this receiver
+  belongs to whatever launches that process, not to this repository. No such sender exists today
+  (see the top of this README).
 - **Anything that authenticates.** `PublicPaths` and the auth variants are an open question
   (migration-plan.md §4).
