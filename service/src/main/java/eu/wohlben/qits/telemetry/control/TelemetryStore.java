@@ -87,7 +87,7 @@ public class TelemetryStore {
   public static final String SERVICE_KEY_PREFIX = "_service/";
 
   static final String REPOSITORY_ATTRIBUTE = "qits.repository.id";
-  static final String WORKSPACE_ATTRIBUTE = "qits.workspace.id";
+  public static final String WORKSPACE_ATTRIBUTE = "qits.workspace.id";
 
   // Package-visible so the plain-JUnit store test can shrink them; injected values come from
   // qits.telemetry.* when running in Quarkus (defaults here, pattern of qits.services.*).

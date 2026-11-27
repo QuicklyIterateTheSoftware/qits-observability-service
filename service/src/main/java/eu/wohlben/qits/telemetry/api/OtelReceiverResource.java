@@ -11,6 +11,7 @@ import eu.wohlben.qits.telemetry.control.TelemetryStore;
 import eu.wohlben.qits.telemetry.dto.MetricPoint;
 import eu.wohlben.qits.telemetry.dto.StoredLog;
 import eu.wohlben.qits.telemetry.dto.StoredSpan;
+import eu.wohlben.qits.telemetry.sourcemap.SourceMapping;
 import io.opentelemetry.proto.collector.logs.v1.ExportLogsServiceRequest;
 import io.opentelemetry.proto.collector.logs.v1.ExportLogsServiceResponse;
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
@@ -121,6 +122,13 @@ public class OtelReceiverResource {
    */
   @Inject ErrorIssueAggregator aggregator;
 
+  /**
+   * Maps a browser error's minified stack through the release's source maps before the stamp
+   * (epic qits-2689, qits-2766): it adds {@code qits.error.mapped-stacktrace} and changes nothing
+   * else, waits at most its fetch budget, and hands every other log back untouched.
+   */
+  @Inject SourceMapping sourceMapping;
+
   @POST
   @Path("/traces")
   @Operation(hidden = true, operationId = EXPORT_TRACES)
@@ -146,7 +154,8 @@ public class OtelReceiverResource {
     forwarder.forward("logs", contentType, contentEncoding, body);
     ExportLogsServiceRequest request = parse(body, ExportLogsServiceRequest::parseFrom);
     List<StoredLog> decoded =
-        fingerprinter.stamp(decoder.decodeLogs(request, System.currentTimeMillis()));
+        fingerprinter.stamp(
+            sourceMapping.map(decoder.decodeLogs(request, System.currentTimeMillis())));
     store.addLogs(decoded);
     liveFeed.publishLogs(decoded);
     aggregator.offer(decoded);

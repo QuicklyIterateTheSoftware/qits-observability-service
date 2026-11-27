@@ -3,6 +3,7 @@ package eu.wohlben.qits.telemetry.control;
 import eu.wohlben.qits.telemetry.dto.StoredLog;
 import eu.wohlben.qits.telemetry.issues.ErrorIssueDelta;
 import eu.wohlben.qits.telemetry.issues.ErrorIssues;
+import eu.wohlben.qits.telemetry.sourcemap.BrowserStackMapper;
 import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -240,10 +241,19 @@ public class ErrorIssueAggregator {
         log.serviceName(),
         ErrorFingerprinter.normaliseMessage(log.body()),
         cut(log.body(), MAX_SAMPLE_MESSAGE),
-        cut(emptyToNull(attributes.get("exception.stacktrace")), MAX_SAMPLE_STACKTRACE),
+        cut(sampleStacktrace(attributes), MAX_SAMPLE_STACKTRACE),
         log.hasTrace() ? log.traceId() : null,
         at,
         emptyToNull(version));
+  }
+
+  /**
+   * The stack an issue keeps as its sample: the mapped one when the receiver mapped a browser
+   * stack through its release's source maps (qits-2766), else the stack as it came.
+   */
+  private static String sampleStacktrace(Map<String, String> attributes) {
+    String mapped = emptyToNull(attributes.get(BrowserStackMapper.MAPPED_STACKTRACE));
+    return mapped != null ? mapped : emptyToNull(attributes.get("exception.stacktrace"));
   }
 
   private static String cut(String value, int max) {

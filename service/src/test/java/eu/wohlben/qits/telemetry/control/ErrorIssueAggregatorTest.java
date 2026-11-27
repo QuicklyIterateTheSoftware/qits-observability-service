@@ -284,4 +284,33 @@ class ErrorIssueAggregatorTest {
     assertNotNull(delta.message());
     assertTrue(delta.message().length() <= 200);
   }
+
+  /** qits-2766: a browser stack the receiver mapped is the issue's sample, and the fingerprint is not moved by it. */
+  @Test
+  void theMappedStackIsTheSampleAndTheFingerprintIgnoresIt() {
+    StoredLog minified =
+        error("qits-x-browser", "TypeError", T, "v1", "boom", null, "TypeError: boom\n    at a (https://h/main-ABC.js:1:5)");
+    Map<String, String> attributes = new LinkedHashMap<>(minified.attributes());
+    attributes.put("qits.error.mapped-stacktrace", "TypeError: boom\n    at src/app/x.ts:3:7");
+    StoredLog mapped =
+        new StoredLog(
+            minified.epochNanos(),
+            minified.severityNumber(),
+            minified.severityText(),
+            minified.body(),
+            minified.traceId(),
+            minified.spanId(),
+            minified.serviceName(),
+            attributes,
+            minified.resourceAttributes(),
+            minified.receivedAtMillis());
+    assertEquals(
+        fingerprinter.fingerprint(minified).fingerprint(),
+        fingerprinter.fingerprint(mapped).fingerprint(),
+        "qits-2766 changes no fingerprint");
+    aggregator.offer(List.of(mapped));
+    aggregator.flush();
+    ErrorIssueDelta delta = sink.windows.getFirst().getFirst();
+    assertEquals("TypeError: boom\n    at src/app/x.ts:3:7", delta.sampleStacktrace());
+  }
 }
