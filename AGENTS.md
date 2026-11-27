@@ -9,8 +9,7 @@ ports. This file is the working conventions on top of it.
 `mvn install` elsewhere, no credentials. `mvn verify` is the gate. Anything that would break that is
 not a tradeoff to weigh, it is the thing this repo exists to avoid.
 
-That is why: the poms duplicate versions instead of inheriting them, the cross-context scoping
-checks are ports with fakes in `src/test` rather than a real projects/workspaces database, and
+That is why: the poms duplicate versions instead of inheriting them, and
 `OtelStubTestResource` runs a `com.sun.net.httpserver.HttpServer` on an ephemeral port instead of
 reaching a real OTLP collector. **Never make the suite depend on a live collector, on port 4317/4318,
 or on the network.** `OtelTeeUnreachableTest` deliberately points at `http://localhost:1`, and that
@@ -58,11 +57,16 @@ of JAX-RS annotations so it can be unit-tested without booting Quarkus — `Tele
 ## Adding a dependency on another context
 
 Don't. Declare a port in the package that needs it, inject it as `Instance<T>`, and make absent a
-supported configuration with a documented behaviour — see the table in the README.
+supported configuration with a documented behaviour, stated in its javadoc. No such port exists
+today. The cross-project scoping ports (`RepositoryScopeGuard`, `WorkspaceLookup`) guarded only
+the MCP tools, and were deleted with them in qits-1174 (`16ccb0a`).
 
-For the two existing ports the documented behaviour is **fail closed**, not "skip the check": they
-are cross-project isolation boundaries. A future port that only enriches a response may of course
-degrade gracefully instead; say which in its javadoc.
+**Read scoping comes back before any workspace sender does.** Reads are gated by role only (see
+*Authentication*), which is safe only while every bucket holds a platform service's telemetry. Nothing
+sends workspace telemetry today: the workspace daemon's `otel` launch toggle was removed in
+`2d10d13`. Whoever brings a sender back must first restore read scoping, as a port that **fails
+closed** by project rather than skipping the check, before any workspace bucket carries data. A port
+that only enriches a response may degrade gracefully instead; say which in its javadoc.
 
 Never add a JPA relation to another context's entity, and never add an entity without first
 re-reading "Error issues" in the README: the buffer stays in memory, and an entity must be exposed
@@ -118,11 +122,6 @@ negative delta on every eviction, and a missed one leaks the global ceiling. Evi
 counted: `evictOldestSpan` / `evictOldestLog` are the only places records leave, so route new
 eviction paths through them rather than calling `removeFirst()` and leaving the counter behind.
 
-Anything appended fires at most one `TelemetryChanged` per distinct scoped workspace per call. Do
-not fire per record; a 1000-span batch is one event by design. Do not wire a stream to it either —
-it is silent for everything that is not workspace-scoped, which today is all of it, and the reason
-is written in its javadoc.
-
 **Bucket keys are opaque, and that is load-bearing.** `keyFor()` picks the workspace pair, then
 `service.name`, then `_unscoped`; the REST surface hands the key out through `…/telemetry/sources`
 and takes it back as `?source=`. No caller constructs one, so the tiers can change without a wire
@@ -136,10 +135,12 @@ plain field that a `StartupEvent` observer merely re-stamps.
 ## Authentication
 
 Two ways in. Both end in one `SecurityIdentity`, and Jakarta `@RolesAllowed({"qits:admin",
-"qits:agent"})` decides for both, on the REST API and on the stream's upgrade (`qits:agent` is a
-commissioned agent's role; everything behind it only reads). `qits:admin-agent` — an admin
-workspace's agent (qits-628 follow-up) — and `qits:desk-admin` — the delivery desk's own role
-(epic qits-1621) — are both admitted everywhere `qits:admin` is:
+"qits:admin-agent", "qits:desk-admin", "qits:agent"})` decides for both, on the REST API and on the
+stream's upgrade. `qits:admin-agent` is an admin workspace's agent (qits-628 follow-up),
+`qits:desk-admin` the delivery desk's own role (epic qits-1621), and `qits:agent` a commissioned
+agent's role. Only the error-issue dismiss excludes `qits:agent`. **That role check is the whole
+read gate:** nothing narrows a read by project or workspace, and `…/telemetry/sources` lists every
+bucket.
 
 - **Forward-auth headers** — `X-Qits-User` / `X-Qits-Roles`, read by qits-auth-core's
   `ForwardAuthMechanism`. A browser session gets them from the edge. This way in goes with
@@ -183,11 +184,11 @@ with a person's token, for example `curl -H "Authorization: Bearer $(qits-token 
 or through the `qits` CLI (`qits observe ...`) against a deployed instance.
 
 None of this reaches ingest. `/observability/api/otel/v1/*` is allow-listed unauthenticated because
-its callers are exporter SDKs inside workspace containers, not sessions — they carry no identity and
-never traverse the front door at all, since every service sits unpublished on `qits-net` alongside
-those containers (`migration-plan.md` §9 item 21). The gateway is a perimeter against the internet,
-not a boundary on `qits-net`; do not write anything here as if it were. The scoping guards, not the
-identity, are what keep one project's telemetry out of another's.
+its callers are exporter SDKs in the platform services, not sessions — they carry no identity and
+never traverse the front door at all, since every service sits unpublished on `qits-net`
+(`migration-plan.md` §9 item 21). The gateway is a perimeter against the internet, not a boundary on
+`qits-net`; do not write anything here as if it were. Nothing here keeps one project's telemetry out
+of another's. See "Adding a dependency on another context" before any workspace telemetry arrives.
 
 ## The live stream
 
@@ -196,8 +197,7 @@ filtered on the server. README "The live stream" is the wire protocol, shared wi
 change it there first, and on both sides.
 
 - **The hook is in `OtelReceiverResource`**, after each `store.add*`, and nowhere else. Not in
-  `TelemetryStore` (it stays CDI-free) and not on `TelemetryChanged` (silent for all but workspace
-  records).
+  `TelemetryStore` (it stays CDI-free).
 - **Ingest never waits and never fails for it.** `control/TelemetryLiveFeed` returns at once with no
   subscriber, hands the batch to one dispatcher thread with a bounded backlog, and catches
   everything. Keep sends as `sendText(…).subscribe()`; never `sendTextAndAwait`.
@@ -287,7 +287,7 @@ Playwright never launches anything and no browser is downloaded.
 ### What only a launched process can say
 
 - **The two doors are different.** `OtelReceiverResource` is `@PermitAll` and
-  `WorkspaceTelemetryController` is `@RolesAllowed({"qits:admin", "qits:agent"})`, and a
+  `WorkspaceTelemetryController` is `@RolesAllowed` for the four reader roles, and a
   `@QuarkusTest` sees whatever its `@TestSecurity` identity is granted. A `NORMAL` launch has no
   test identity — a reader carries a bearer (`StoryTarget.operator()`) or nothing — so 401 / 403 /
   200 on one port is stated against the shipped security configuration.
