@@ -99,7 +99,7 @@
              .config/qits/deployments.yml declares `postgresql:eventstream:qits_observability_eventstream`,
              and its own quarkus-oidc-client, which the `qits` client in application.properties
              configures from the `idp:client` resource. -->
-        <qits.eventstream.version>2026.1127.184243</qits.eventstream.version>
+        <qits.eventstream.version>2026.1127.202344</qits.eventstream.version>
         <!-- A REAL POSTGRES FOR THE SUITE WITHOUT DOCKER (epic qits-2538): zonky resolves postgres
              binaries as ordinary Maven artifacts and the suite spawns them as a child process. A
              clone must test green with no docker, and the error-issue schema still has to be
