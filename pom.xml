@@ -99,7 +99,7 @@
              .config/qits/deployments.yml declares `postgresql:eventstream:qits_observability_eventstream`,
              and its own quarkus-oidc-client, which the `qits` client in application.properties
              configures from the `idp:client` resource. -->
-        <qits.eventstream.version>2026.1126.192104</qits.eventstream.version>
+        <qits.eventstream.version>2026.1127.60632</qits.eventstream.version>
         <!-- A REAL POSTGRES FOR THE SUITE WITHOUT DOCKER (epic qits-2538): zonky resolves postgres
              binaries as ordinary Maven artifacts and the suite spawns them as a child process. A
              clone must test green with no docker, and the error-issue schema still has to be
@@ -124,7 +124,7 @@
         <!-- qits-landing-app's Observability › Logs page (ticket qits-2313): listTelemetrySources and
              searchTelemetryLogs, `pacts/qits-landing-app_qits-observability-service.json`. -->
         <qits.landing-app-pacts-qits-observability-service.version>2026.1126.62952</qits.landing-app-pacts-qits-observability-service.version>
-        <qits.system-runner-daemon-pacts-qits-observability-service.version>2026.1126.104211</qits.system-runner-daemon-pacts-qits-observability-service.version>
+        <qits.system-runner-daemon-pacts-qits-observability-service.version>2026.1127.62640</qits.system-runner-daemon-pacts-qits-observability-service.version>
         <pact.version>4.6.21</pact.version>
         <qits.maven.repository.url>https://registry.qits.wohlben.eu/artifacts/maven/maven</qits.maven.repository.url>
 
