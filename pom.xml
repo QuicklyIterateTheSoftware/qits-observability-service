@@ -44,7 +44,7 @@
          it. `domain` is internal and never published; `service` builds it from source (-am). -->
     <groupId>eu.wohlben.qits</groupId>
     <artifactId>qits-observability</artifactId>
-    <version>2026.1127.70533</version>
+    <version>2026.1127.104422</version>
     <packaging>pom</packaging>
     <name>qits-observability</name>
 
