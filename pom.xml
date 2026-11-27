@@ -61,14 +61,14 @@
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
         <quarkus.platform.version>3.40.1</quarkus.platform.version>
-        <qits.auth-core.version>2026.1125.60148</qits.auth-core.version>
+        <qits.auth-core.version>2026.1126.172511</qits.auth-core.version>
         <!-- Service-to-service HTTP that says who is calling: QitsHttpClients.wrap turns a raw
              java.net.http.HttpClient into one that opens a CLIENT span and sends traceparent plus
              X-Qits-Caller; the server filter (jandex-discovered off this jar alone) records an
              inbound caller on the server span. OtelForwarder's own client stays unwrapped
              (@RawHttpClient) — this service still takes the dependency so the server filter is
              active. Not released yet (qits-1198). -->
-        <qits.http-core.version>2026.1125.110206</qits.http-core.version>
+        <qits.http-core.version>2026.1126.172511</qits.http-core.version>
         <!-- The user-story framework (test scope): the seven @UserStory classes under
              service/src/test/java/…/telemetry/stories (plus TelemetryBootstrapIT, which owns the
              boot) are written against it, so a run that boots the packaged artifact also
@@ -99,7 +99,7 @@
              .config/qits/deployments.yml declares `postgresql:eventstream:qits_observability_eventstream`,
              and its own quarkus-oidc-client, which the `qits` client in application.properties
              configures from the `idp:client` resource. -->
-        <qits.eventstream.version>2026.1125.142425</qits.eventstream.version>
+        <qits.eventstream.version>2026.1126.192104</qits.eventstream.version>
         <!-- A REAL POSTGRES FOR THE SUITE WITHOUT DOCKER (epic qits-2538): zonky resolves postgres
              binaries as ordinary Maven artifacts and the suite spawns them as a child process. A
              clone must test green with no docker, and the error-issue schema still has to be
