@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import eu.wohlben.qits.telemetry.control.ErrorFingerprinter.ErrorFingerprint;
 import eu.wohlben.qits.telemetry.dto.StoredLog;
+import eu.wohlben.qits.telemetry.sourcemap.BrowserStackMapper;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -93,6 +94,101 @@ class ErrorFingerprinterTest {
     assertEquals("TypeError", print.type());
     assertEquals("", print.location());
     assertEquals("Cannot read properties of undefined (reading <s>) in <n> places", print.message());
+  }
+
+  // --- mapped browser locations (qits-2768) ---------------------------------------------------
+
+  /** The minified stack of the live qits-2766 check (qits-landing 2026.1127.191530's main chunk). */
+  private static final String LIVE_BROWSER_STACK =
+      "SyntaxError: qits-2766 live check: synthetic browser error, safe to dismiss\n"
+          + "    at JSON.parse (<anonymous>)\n"
+          + "    at m (https://qits.wohlben.eu/main-6V4LQOBD.js:21:7747)\n"
+          + "    at v$1 (https://qits.wohlben.eu/main-6V4LQOBD.js:21:7927)";
+
+  private static StoredLog liveBrowserError(Map<String, String> extra) {
+    Map<String, String> attributes = new LinkedHashMap<>();
+    attributes.put("exception.type", "SyntaxError");
+    attributes.put(
+        "exception.message", "qits-2766 live check: synthetic browser error, safe to dismiss");
+    attributes.put("exception.stacktrace", LIVE_BROWSER_STACK);
+    attributes.putAll(extra);
+    return error(
+        "qits-landing-browser",
+        "qits-2766 live check: synthetic browser error, safe to dismiss",
+        attributes);
+  }
+
+  @Test
+  void aMappedBrowserErrorIsKeyedOnItsSourceFileAndFunction() {
+    ErrorFingerprint print =
+        fingerprinter.fingerprint(
+            liveBrowserError(
+                Map.of(
+                    BrowserStackMapper.MAPPED_LOCATION,
+                    "src/app/core/events/refresh-on.ts#payloadOf")));
+
+    assertEquals("SyntaxError", print.type());
+    assertEquals("src/app/core/events/refresh-on.ts#payloadOf", print.location());
+    assertEquals("", print.message(), "the message is unused when type and location exist");
+    // SHA-256("qits-landing-browser\nSyntaxError\nsrc/app/core/events/refresh-on.ts#payloadOf\n").
+    assertEquals("0475605b4e52a343cf51ca9259e16ffd", print.fingerprint());
+  }
+
+  /**
+   * Measured live on 2026-11-27: this log, at a version with maps (mapped stack, no location yet)
+   * and at one without, was stamped {@code e9217bc2547e222761a71fb6f9a58a12} both times. An unmapped
+   * browser error keeps that fingerprint, byte for byte.
+   */
+  @Test
+  void anUnmappedBrowserErrorKeepsTodaysFingerprint() {
+    ErrorFingerprint print = fingerprinter.fingerprint(liveBrowserError(Map.of()));
+
+    assertEquals("", print.location());
+    assertEquals("e9217bc2547e222761a71fb6f9a58a12", print.fingerprint());
+  }
+
+  @Test
+  void theSameMappedErrorInALaterReleaseKeepsItsFingerprint() {
+    String later =
+        "TypeError: x is undefined\n"
+            + "    at Qz (https://qits.wohlben.eu/main-NEWER123.js:3:120)\n"
+            + "    at Rk (https://qits.wohlben.eu/chunk-Zz9_aB.js:1:44)";
+    StoredLog first =
+        error(
+            "qits-landing-browser",
+            "x is undefined",
+            Map.of(
+                "exception.type", "TypeError",
+                "exception.stacktrace", "TypeError: x is undefined\n    at m (https://q/main-A.js:21:7747)",
+                BrowserStackMapper.MAPPED_LOCATION, "src/app/a.ts#load"));
+    StoredLog next =
+        error(
+            "qits-landing-browser",
+            "x is undefined (2nd)",
+            Map.of(
+                "exception.type", "TypeError",
+                "exception.stacktrace", later,
+                BrowserStackMapper.MAPPED_LOCATION, "src/app/a.ts#load"));
+
+    assertEquals(
+        fingerprinter.fingerprint(first).fingerprint(),
+        fingerprinter.fingerprint(next).fingerprint());
+  }
+
+  @Test
+  void aMappedLocationWinsOverAJavaFrameAndABlankOneIsIgnored() {
+    assertEquals(
+        "src/app/a.ts",
+        location(
+            Map.of(
+                "exception.stacktrace", MAINTENANCE_STACK,
+                BrowserStackMapper.MAPPED_LOCATION, "src/app/a.ts")));
+    assertEquals(
+        "eu.wohlben.qits.maintenance.persistence.MaintenanceStore.newestOpenedRequest",
+        location(
+            Map.of(
+                "exception.stacktrace", MAINTENANCE_STACK,
+                BrowserStackMapper.MAPPED_LOCATION, " ")));
   }
 
   // --- location fallbacks ----------------------------------------------------------------------

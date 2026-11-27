@@ -113,8 +113,14 @@ public class SourceMapping {
     }
   }
 
-  /** The batch, browser errors mapped; the same list when mapping is off or nothing applied. */
+  /**
+   * The batch, browser errors mapped and every sender's own copy of the derived attributes dropped;
+   * the same list when nothing applied.
+   */
   public List<StoredLog> map(List<StoredLog> logs) {
-    return mapper == null || logs.isEmpty() ? logs : mapper.map(logs);
+    if (logs.isEmpty()) {
+      return logs;
+    }
+    return mapper == null ? BrowserStackMapper.withoutDerived(logs) : mapper.map(logs);
   }
 }

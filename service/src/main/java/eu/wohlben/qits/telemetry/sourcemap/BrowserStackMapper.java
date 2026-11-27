@@ -33,8 +33,18 @@ import org.jboss.logging.Logger;
  *
  * <p><b>What it writes.</b> {@value #MAPPED_STACKTRACE}: the stack with every mapped frame replaced
  * by {@code    at <name> (<source>:<line>:<column>)} (1-based) and every other line as it came,
- * cut at {@value #MAX_MAPPED_STACKTRACE} characters. Nothing else changes in this task — the
- * fingerprint still reads the minified stack, so no issue moves.
+ * cut at {@value #MAX_MAPPED_STACKTRACE} characters; and {@value #MAPPED_LOCATION}, the location
+ * {@code ErrorFingerprinter} hashes in place of a Java frame (qits-2768): the first in-app mapped
+ * frame (source under {@code src/}, not under {@code node_modules/}), else the first mapped frame,
+ * as {@code <source>#<function>}, or {@code <source>} alone when the function is not known. Line
+ * and column are never in it, so the same error in a later release — other chunk names, other
+ * positions, the same code — keeps its fingerprint. It is written here, once, so the receiver's
+ * stamp and the aggregator's recomputation read one value.
+ *
+ * <p><b>Only the receiver writes them.</b> Both attributes are derived, so a sender's own copy of
+ * either is dropped from every log that reaches the mapper, mapped or not: an exporter cannot steer
+ * another error's fingerprint by naming a location, and an unmapped log keeps exactly the
+ * fingerprint it had before this epic.
  *
  * <p><b>What it never does</b>: wait longer than {@code budgetNanos} (5 s) for one batch, throw, or
  * log at ERROR — this service's own ERROR logs feed its own issues. Any failure leaves the log
@@ -44,6 +54,14 @@ public final class BrowserStackMapper {
 
   /** The attribute holding the mapped stack trace. */
   public static final String MAPPED_STACKTRACE = "qits.error.mapped-stacktrace";
+
+  /** The attribute holding the mapped location the fingerprint hashes (qits-2768). */
+  public static final String MAPPED_LOCATION = "qits.error.mapped-location";
+
+  /** Where an application's own sources sit in its maps, repository-relative. */
+  private static final String IN_APP_ROOT = "src/";
+
+  private static final String VENDOR = "node_modules/";
 
   /** The service-name suffix of a browser bundle's telemetry. */
   public static final String BROWSER_SUFFIX = "-browser";
@@ -89,14 +107,14 @@ public final class BrowserStackMapper {
     long deadline = nanos.getAsLong() + budgetNanos;
     List<StoredLog> out = null;
     for (int i = 0; i < logs.size(); i++) {
-      StoredLog log = logs.get(i);
+      StoredLog log = withoutDerived(logs.get(i));
       StoredLog mapped = log;
       try {
         mapped = mapOne(log, deadline);
       } catch (RuntimeException e) {
         warn("mapping a browser stack failed, the log is kept as it came: " + e);
       }
-      if (mapped != log) {
+      if (mapped != logs.get(i)) {
         if (out == null) {
           out = new ArrayList<>(logs);
         }
@@ -204,6 +222,72 @@ public final class BrowserStackMapper {
             : mapped.toString();
     Map<String, String> attributes = new LinkedHashMap<>(log.attributes());
     attributes.put(MAPPED_STACKTRACE, text);
+    attributes.put(MAPPED_LOCATION, location(top, positions));
+    return new StoredLog(
+        log.epochNanos(),
+        log.severityNumber(),
+        log.severityText(),
+        log.body(),
+        log.traceId(),
+        log.spanId(),
+        log.serviceName(),
+        Collections.unmodifiableMap(attributes),
+        log.resourceAttributes(),
+        log.receivedAtMillis());
+  }
+
+  /**
+   * The first in-app mapped frame's {@code <source>#<function>}, else the first mapped frame's;
+   * {@code <source>} alone when its function is not known. {@code positions} is never empty here.
+   */
+  static String location(List<Integer> top, Map<Integer, SourceMap.Position> positions) {
+    String first = null;
+    for (int index : top) {
+      SourceMap.Position at = positions.get(index);
+      if (at == null) {
+        continue;
+      }
+      String source = normaliseSource(at.source());
+      String name = callerName(top, positions, index);
+      String location = name == null ? source : source + "#" + name;
+      if (source.startsWith(IN_APP_ROOT) && !source.contains(VENDOR)) {
+        return location;
+      }
+      if (first == null) {
+        first = location;
+      }
+    }
+    return first;
+  }
+
+  /**
+   * The batch without any sender's own copy of the derived attributes: what the receiver hands on
+   * when mapping is switched off, so the fingerprint never reads a location nobody here derived.
+   * The same batch back when no log carries one.
+   */
+  public static List<StoredLog> withoutDerived(List<StoredLog> logs) {
+    List<StoredLog> out = null;
+    for (int i = 0; i < logs.size(); i++) {
+      StoredLog stripped = withoutDerived(logs.get(i));
+      if (stripped != logs.get(i)) {
+        if (out == null) {
+          out = new ArrayList<>(logs);
+        }
+        out.set(i, stripped);
+      }
+    }
+    return out == null ? logs : out;
+  }
+
+  /** The log without a sender's own copy of the derived attributes; the same instance if none. */
+  private static StoredLog withoutDerived(StoredLog log) {
+    Map<String, String> in = log.attributes();
+    if (in == null || (!in.containsKey(MAPPED_STACKTRACE) && !in.containsKey(MAPPED_LOCATION))) {
+      return log;
+    }
+    Map<String, String> attributes = new LinkedHashMap<>(in);
+    attributes.remove(MAPPED_STACKTRACE);
+    attributes.remove(MAPPED_LOCATION);
     return new StoredLog(
         log.epochNanos(),
         log.severityNumber(),

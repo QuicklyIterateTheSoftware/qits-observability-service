@@ -159,6 +159,104 @@ class BrowserStackMapperTest {
     assertEquals(BrowserStackMapper.MAX_MAPPED_STACKTRACE, mapped(out).length());
   }
 
+  // --- the mapped location (qits-2768) ---------------------------------------------------------
+
+  private static String location(StoredLog log) {
+    return log.attributes().get(BrowserStackMapper.MAPPED_LOCATION);
+  }
+
+  private String locationOf(String stack) {
+    source.put(SITE, "v1", "main-ABC.js", TestMaps.fixture());
+    return location(mapper(5000).map(List.of(log("qits-landing-browser", "v1", stack, 17))).getFirst());
+  }
+
+  @Test
+  void aMappedErrorCarriesItsSourceFileAndFunctionWithoutLineOrColumn() {
+    assertEquals("src/app/x.page.ts#save", locationOf(STACK));
+  }
+
+  @Test
+  void anInAppFrameWinsOverAVendorFrameAboveIt() {
+    assertEquals(
+        "src/app/x.page.ts#save",
+        locationOf(
+            "TypeError: boom\n"
+                + "    at a (https://qits.example/main-ABC.js:1:45)\n"
+                + "    at b (https://qits.example/main-ABC.js:1:5)\n"
+                + "    at c (https://qits.example/main-ABC.js:1:25)"));
+  }
+
+  @Test
+  void withNoInAppFrameTheFirstMappedFrameIsTheLocation() {
+    assertEquals(
+        "node_modules/@angular/core/fesm2022/core.mjs",
+        locationOf("TypeError: boom\n    at a (https://qits.example/main-ABC.js:1:45)"));
+  }
+
+  @Test
+  void anUnknownFunctionLeavesTheSourceAlone() {
+    assertEquals(
+        "src/app/x.page.ts",
+        locationOf("TypeError: boom\n    at a (https://qits.example/main-ABC.js:1:5)"));
+  }
+
+  @Test
+  void theSameCodeInALaterReleaseHasTheSameLocation() {
+    source.put(SITE, "v1", "main-ABC.js", TestMaps.fixture());
+    source.put(SITE, "v2", "main-DEF.js", TestMaps.fixture());
+    BrowserStackMapper mapper = mapper(5000);
+    StoredLog first = mapper.map(List.of(log("qits-landing-browser", "v1", STACK, 17))).getFirst();
+    StoredLog later =
+        mapper
+            .map(List.of(log("qits-landing-browser", "v2", STACK.replace("main-ABC", "main-DEF"), 17)))
+            .getFirst();
+    assertEquals(location(first), location(later));
+  }
+
+  @Test
+  void aSendersOwnDerivedAttributesAreDropped() {
+    StoredLog java = log("qits-ci", "v1", "java.lang.X: y\n\tat a.B.c(B.java:1)", 17);
+    StoredLog unmapped = log("qits-landing-browser", "v1", STACK, 17); // no map published
+    List<StoredLog> logs = new java.util.ArrayList<>();
+    for (StoredLog log : List.of(java, unmapped)) {
+      Map<String, String> attributes = new LinkedHashMap<>(log.attributes());
+      attributes.put(BrowserStackMapper.MAPPED_LOCATION, "src/app/evil.ts#steer");
+      attributes.put(BrowserStackMapper.MAPPED_STACKTRACE, "forged");
+      logs.add(
+          new StoredLog(
+              1L, 17, "ERROR", "boom", "", "", log.serviceName(), attributes,
+              log.resourceAttributes(), 1L));
+    }
+    for (List<StoredLog> out :
+        List.of(mapper(5000).map(logs), BrowserStackMapper.withoutDerived(logs))) {
+      for (StoredLog log : out) {
+        assertNull(location(log), log.serviceName());
+        assertNull(mapped(log), log.serviceName());
+        assertEquals("TypeError", log.attributes().get("exception.type"));
+      }
+    }
+  }
+
+  @Test
+  void aSendersCopyIsReplacedByTheDerivedOne() {
+    source.put(SITE, "v1", "main-ABC.js", TestMaps.fixture());
+    Map<String, String> attributes =
+        new LinkedHashMap<>(log("qits-landing-browser", "v1", STACK, 17).attributes());
+    attributes.put(BrowserStackMapper.MAPPED_LOCATION, "src/app/evil.ts#steer");
+    StoredLog forged =
+        new StoredLog(
+            1L, 17, "ERROR", "boom", "", "", "qits-landing-browser", attributes,
+            Map.of("service.name", "qits-landing-browser", "service.version", "v1"), 1L);
+    assertEquals(
+        "src/app/x.page.ts#save", location(mapper(5000).map(List.of(forged)).getFirst()));
+  }
+
+  @Test
+  void aBatchWithNothingToDropComesBackAsItIs() {
+    List<StoredLog> logs = List.of(log("qits-landing-browser", "v1", STACK, 17));
+    assertSame(logs, BrowserStackMapper.withoutDerived(logs));
+  }
+
   @Test
   void sourcesAreMadeRepositoryRelative() {
     assertEquals("src/app/a.ts", BrowserStackMapper.normaliseSource("webpack:///./src/app/a.ts"));

@@ -302,6 +302,13 @@ relays the exporter's bytes untouched). The fingerprint is 32 lower-case hex cha
 the service, `exception.type`, the class and method of the first in-app frame
 (`qits.observability.error-issues.in-app-prefixes`, comma-separated, default `eu.wohlben.qits.`)
 and, where either is missing, the normalised body — never the line number or the version.
+A browser error (`<application>-browser`, epic qits-2689) is first mapped through its release's
+source maps (`@sourcemaps/<application>` in the docs store, `sourcemap/BrowserStackMapper`), which
+writes `qits.error.mapped-stacktrace` (the issue's sample stack) and `qits.error.mapped-location`:
+the first mapped frame under `src/` (else the first mapped frame) as `<source>#<function>`. That
+location stands in for the Java frame, so the same error keeps its issue across releases; a browser
+error that could not be mapped keeps the fingerprint it always had. Both attributes are the
+receiver's alone: a sender's own copy is dropped at ingest.
 `?fingerprint=` on `logs` keeps one fingerprint's lines, ANDed with the other params; a value not
 matching `^[0-9a-f]{32}$` is a 400.
 

@@ -1,6 +1,7 @@
 package eu.wohlben.qits.telemetry.control;
 
 import eu.wohlben.qits.telemetry.dto.StoredLog;
+import eu.wohlben.qits.telemetry.sourcemap.BrowserStackMapper;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.nio.charset.StandardCharsets;
@@ -26,9 +27,10 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
  *
  * <p>The fingerprint is the lower-case hex of the first 16 bytes of {@code SHA-256(serviceName +
  * "\n" + type + "\n" + location + "\n" + message)}, where {@code type} is {@code exception.type},
- * {@code location} is the class and method of the first in-app stack frame (or the best fallback a
- * producer sent), and {@code message} is the normalised body, used only when type or location is
- * empty. The line number and the service version are deliberately not inputs: both move between
+ * {@code location} is the mapped location of a browser error ({@value
+ * BrowserStackMapper#MAPPED_LOCATION}, {@code <source>#<function>}, qits-2768), else the class and
+ * method of the first in-app stack frame (or the best fallback a producer sent), and {@code
+ * message} is the normalised body, used only when type or location is empty. The line number and the service version are deliberately not inputs: both move between
  * releases, and a regression in a later version belongs to the same issue.
  *
  * <p>Plain Java: the logic needs no CDI, so {@code ErrorFingerprinterTest} news it up. The bean
@@ -146,8 +148,21 @@ public class ErrorFingerprinter {
         log.receivedAtMillis());
   }
 
-  /** The first in-app frame, else the first frame, else what the logging bridge named. */
+  /**
+   * The mapped browser location, else the first in-app frame, else the first frame, else what the
+   * logging bridge named.
+   *
+   * <p>The mapped location wins (qits-2768): the receiver derived it from the release's source maps
+   * and it names the original source file and function, where a minified browser stack matches no
+   * Java frame and would leave the location empty. Only the receiver writes it — {@code
+   * BrowserStackMapper} drops a sender's copy — so a log without it, a Java one or a browser error
+   * from a release without maps, hashes exactly as before.
+   */
   String location(Map<String, String> attributes) {
+    String mapped = attributes.get(BrowserStackMapper.MAPPED_LOCATION);
+    if (mapped != null && !mapped.isBlank()) {
+      return mapped;
+    }
     String stack = attributes.get("exception.stacktrace");
     if (stack != null && !stack.isEmpty()) {
       String firstFrame = null;
